@@ -34,3 +34,8 @@
     - Items (list of items)
     - Total Price
     - Status (enum)
+
+
+## Todo
+
+- [ ] Update commands in BotFather
