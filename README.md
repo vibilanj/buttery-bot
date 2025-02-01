@@ -24,12 +24,12 @@
 
 ### Models
 
-- Item 
+- Menu
     - Name
     - Quantity
     - Price
     - Picture (?)
-- Order 
+- Order
     - Name
     - Items (list of items)
     - Total Price
@@ -38,4 +38,12 @@
 
 ## Todo
 
+- [ ] How to capture and store logs
 - [ ] Update commands in BotFather
+
+## Learning 
+
+- load_dotenv function
+- Enum type
+- Dealing with decimals and calculations in SQL and Python
+- 
