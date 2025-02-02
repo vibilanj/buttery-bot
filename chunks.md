@@ -83,3 +83,25 @@ thread_local = threading.local()
             logging.info(f"Opened new connection for thread: {threading.current_thread().name}")
         return thread_local.conn, thread_local.cursor
 ```
+
+- Reply keyboard button handler
+```python
+@bot.message_handler(func=lambda message: True)
+def handle_order(message: types.Message) -> None:
+    selected_item_text = message.text
+    
+    _, item_id = selected_item_text.split(':')
+    item = db.get_menu_item(item_id)
+    
+    if not item:
+        bot.send_message(message.chat.id, "Sorry, that item is not available. Please select a valid item.")
+        return
+    
+    msg = bot.send_message(
+        message.chat.id,
+        f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})"
+    )
+
+    username = message.chat.username
+    bot.register_next_step_handler(msg, handle_quantity_input, item.id, username)
+```

@@ -6,8 +6,9 @@ class OrderStatus(Enum):
     Pending = 1
     AwaitingPayment = 2
     Processing = 3
-    Completed = 4
-    Cancelled = 5
+    OrderReady = 4
+    OrderCollected = 5
+    Cancelled = 6
 
 
 class MenuItem(NamedTuple):

@@ -75,7 +75,7 @@ if __name__ == "__main__":
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
         menu = db.get_menu()
-        formatted_message = "📋 *Menu Items*\n"
+        formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
         
         keyboard = types.InlineKeyboardMarkup()
         for item in menu:
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
         msg = bot.send_message(
             call.message.chat.id,
-            f"How many {item.name}s would you like to order? (Price per item: ${item.price:.2f})"
+            f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})"
         )
         username = call.message.chat.username
         bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)

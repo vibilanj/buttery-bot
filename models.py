@@ -23,15 +23,15 @@ class Database:
         self.cursor = self.conn.cursor()
         logging.info(f"Connected to database: {db_file}")
         # TODO: enable wal mode?
-        # self._enable_wal_mode()
+        self._enable_wal_mode()
 
-    # def _enable_wal_mode(self) -> None:
-    #     try:
-    #         self.cursor.execute("PRAGMA journal_mode=WAL;")
-    #         self.conn.commit()
-    #         logging.info(f"Enabled WAL mode on database: {self.db_file}")
-    #     except sqlite3.Error as e:
-    #         logging.error(f"Error enabling WAL mode: {e}")
+    def _enable_wal_mode(self) -> None:
+        try:
+            self.cursor.execute("PRAGMA journal_mode=WAL;")
+            self.conn.commit()
+            logging.info(f"Enabled WAL mode on database: {self.db_file}")
+        except sqlite3.Error as e:
+            logging.error(f"Error enabling WAL mode: {e}")
 
     def __del__(self) -> None:
         """Close the database connection when the object is deleted."""
@@ -176,9 +176,9 @@ class Database:
     def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
-        self.insert_menu_item("Pizza", 50, 9.99)
-        self.insert_menu_item("Burger", 30, 5.99)
-        self.insert_menu_item("Fries", 100, 2.49)
+        self.insert_menu_item("Dumplings", 20, 2)
+        self.insert_menu_item("Cream Roll Cake", 15, 2)
+        self.insert_menu_item("Xiao Long Bao", 20, 3)
 
         # Insert some orders
         self._insert_bulk_order("Alice", [(1, 1), (3, 2)])
