@@ -38,12 +38,13 @@
 
 ## Todo
 
-- [ ] How to capture and store logs
+- [x] How to capture and store logs
 - [ ] Update commands in BotFather
+- [ ] Test with real users and concurrency, if not consider using thread local connections or SQLachemy
 
 ## Learning 
 
 - load_dotenv function
 - Enum type
-- Dealing with decimals and calculations in SQL and Python
-- 
+- Dealing with decimal calculations
+- Logging 

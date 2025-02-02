@@ -16,7 +16,7 @@ def setup_logging(log_dir="logs"):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_filename = f"{log_dir}/buttery_{timestamp}.log"
 
-    log_format = "%(asctime)s [%(levelname)s] - %(message)s"
+    log_format = "%(asctime)s [%(levelname)s] @ %(threadName)s - %(message)s"
     
     logging.basicConfig(
         level = logging.INFO,
@@ -38,14 +38,23 @@ if __name__ == "__main__":
     db.initialise()
     db._populate_test_data()
 
-    print(db.get_menu())
-
     bot = telebot.TeleBot(os.getenv("TOKEN"))
 
     # Bot message handlers
-    @bot.message_handler(commands=['start', 'help'])
+    
+    @bot.message_handler(commands=["start"])
     def send_welcome(message):
-        bot.reply_to(message, "Hi, how are you doing?")
+        bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot!")
+
+    @bot.message_handler(commands=["help"])
+    def help(message):
+        # TODO: write a helpful message
+        pass
+
+    @bot.message_handler(commands=["menu"])
+    def show_menu(message):
+        menu = db.get_menu()
+        bot.send_message(message.chat.id, str(menu))
 
     @bot.message_handler(func=lambda m: True)
     def echo_all(message):

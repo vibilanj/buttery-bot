@@ -18,9 +18,19 @@ class OrderStatus(Enum):
 class Database:
     def __init__(self, db_file=DB_FILE):
         self.db_file = db_file
-        self.conn = sqlite3.connect(db_file)
+        self.conn = sqlite3.connect(db_file, check_same_thread=False if sqlite3.threadsafety == 3 else True)
         self.cursor = self.conn.cursor()
         logging.info(f"Connected to database: {db_file}")
+        # TODO: enable wal mode?
+        # self._enable_wal_mode()
+
+    def _enable_wal_mode(self):
+        try:
+            self.cursor.execute("PRAGMA journal_mode=WAL;")
+            self.conn.commit()
+            logging.info(f"Enabled WAL mode on database: {self.db_file}")
+        except sqlite3.Error as e:
+            logging.error(f"Error enabling WAL mode: {e}")
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
