@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 DB_FILE = "buttery.db"
 
+
 def add_log(msg: str):
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -15,6 +16,7 @@ def add_log(msg: str):
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
 
 class Database:
     def __init__(self, db_file:str=DB_FILE) -> None:
@@ -82,6 +84,7 @@ class Database:
         self.conn.commit()
         logging.info("Initialised database and created tables.")
 
+
     # Create
     def insert_menu_item(self, name:str, quantity:int, price:float) -> None:
         """Insert a new item into the menu."""
@@ -114,6 +117,7 @@ class Database:
 
         self.conn.commit()
         logging.info(f"Order for {username} of {quantity}x Item {item_id} added successfully.")
+
 
     # Read
     @add_log("Fetched menu.")
@@ -155,6 +159,13 @@ class Database:
         self.cursor.execute(query, (order_id,))
         rows = self.cursor.fetchall()
         return [OrderItem(*row) for row in rows]
+    
+    def get_status(self, username:str) -> Optional[OrderStatus]:
+        """Fetch the order status by username."""
+        self.cursor.execute("SELECT status FROM orders WHERE customer_name = ?", (username,))
+        row = self.cursor.fetchone()
+        return OrderStatus[row[0]] if row else None
+
 
     # Update
     def update_order_status(self, order_id:int, status:OrderStatus) -> None:
@@ -163,6 +174,7 @@ class Database:
         self.cursor.execute(query, (status.name, order_id))
         self.conn.commit()
         logging.info(f"Order {order_id} status updated to {status.name}.")
+
 
     # Testing 
     def _insert_bulk_order(self, customer_name:str, ordered_items: list[tuple[int, int]]) -> None:
@@ -189,6 +201,7 @@ class Database:
         # Insert some orders
         self._insert_bulk_order("Alice", [(1, 1), (3, 2)])
         self._insert_bulk_order("Bob", [(2, 2), (3, 3)])
+        self._insert_bulk_order("Charl_ie", [(1, 2), (3, 1)])
 
         logging.info("Test data populated.")
 

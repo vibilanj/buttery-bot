@@ -5,8 +5,8 @@
 - List all available items on a particular buttery opening day.
 - Allow users to select available items to make an order.
 - Show total price and payment QR code.
-- Send order and customer information to cooking team.
 - Show order status to customer.
+- Send order and customer information to cooking team.
 - Admin hidden commands to
     - set available items and quantity
     - update available quantity

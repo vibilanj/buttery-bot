@@ -8,6 +8,7 @@ from constants import OrderStatus
 from datetime import datetime
 from decimal import Decimal
 from dotenv import load_dotenv
+from functools import wraps
 from models import Database
 from telebot import types
 
@@ -36,6 +37,9 @@ if __name__ == "__main__":
     setup_logging()
     load_dotenv()
 
+    admins_str = os.getenv("ADMINS")
+    admins = admins_str.split(',') if admins_str else []
+
     db = Database()
     db._reset_database()
     db.initialise()
@@ -43,8 +47,8 @@ if __name__ == "__main__":
 
     bot = telebot.TeleBot(os.getenv("TOKEN"))
 
-    # Bot message handlers
 
+    # Bot message handlers
     @bot.message_handler(commands=["start"])
     def send_welcome(message:types.Message) -> None:
         bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot!")
@@ -66,14 +70,9 @@ if __name__ == "__main__":
             formatted_message += f"• {item.name}  (${item.price:.2f})\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
-    # TODO: admin view of orders
-    # @bot.message_handler(commands=["listorders"])
-    # def show_menu(message:types.Message) -> None:
-    #     orders = db.get_orders()
-    #     bot.send_message(message.chat.id, str(orders))
-
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
+        # TODO: allow only one order per username
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
         
@@ -90,7 +89,15 @@ if __name__ == "__main__":
         )
         bot.register_next_step_handler(msg, handle_item_selection)
 
-    # Bot Next Step Handlers
+    @bot.message_handler(commands=["status"])
+    def check_status(message:types.Message) -> None:
+        status = db.get_status(message.chat.username)
+        if not status:
+            message_text = "You do not have an active order."
+        else:
+            # TODO: use map for more user friendly messages
+            message_text = f"The status of your order is {status.name}."
+        bot.send_message(message.chat.id, message_text)
 
     def handle_item_selection(message:types.Message) -> None:
         item_name, _ = message.text.split(" - ")
@@ -152,6 +159,45 @@ if __name__ == "__main__":
 
         db.update_order_status(pending_order_id, OrderStatus.AwaitingPayment)
         bot.send_message(chat_id, order_summary, parse_mode="Markdown")
+
+
+    # Admin only message handlers
+    def admin_only(f):
+        @wraps(f)
+        def wrapper(message:types.Message, *args, **kwargs):
+            if message.chat.username not in admins:
+                bot.send_message(message.chat.id, "You are not authorised to run this command.")
+            else:
+                return f(message, *args, **kwargs)
+        return wrapper
+
+    def sanitise_username(username:str) -> str:
+        """Escape underscores from usernames for markdown."""
+        return username.replace("_", "\_")
+
+    @bot.message_handler(commands=["listorders"])
+    @admin_only
+    def show_orders(message:types.Message) -> None:
+        orders = db.get_orders()
+        formatted_message = "📃 *All Orders*\n"
+        for order in orders:
+            # TODO: make username easy to click with @ to message them?
+            username = sanitise_username(order.customer_name)
+            formatted_message += f"• {username} - {order.status}\n"
+        bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
+    
+    # TODO: orders view for AwaitingPayment to move to Processing
+    # TODO: orders view for Processing to cook
+    # TODO: change status when OrderReady, OrderCollected, Cancelled
+    # @bot.message_handler(commands=["manageorders"])
+    # @admin_only
+    # def manage_orders(message:types.Message) -> None:
+    #     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    #     # TODO: add additional views/options
+    #     options = ["Update AwaitingPayment Orders", "View Processing Orders", "Update Processing / OrderReady"]
+
+
+    #     msg = bot.send_message(message.chat.id, "What would you like to do?", reply_markup=keyboard)
 
 
     # Setup signal handling for graceful shutdown
