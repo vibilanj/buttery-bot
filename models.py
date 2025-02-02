@@ -123,9 +123,15 @@ class Database:
         rows = self.cursor.fetchall()
         return [MenuItem(*row) for row in rows]
     
-    def get_menu_item(self, id:int) -> Optional[MenuItem]:
+    def get_menu_item_by_id(self, id:int) -> Optional[MenuItem]:
         """Fetch menu item by id."""
         self.cursor.execute("SELECT * FROM menu WHERE id = ?", (id,))
+        row = self.cursor.fetchone()
+        return MenuItem(*row) if row else None
+    
+    def get_menu_item_by_name(self, name:str) -> Optional[MenuItem]:
+        """Fetch menu item by name."""
+        self.cursor.execute("SELECT * FROM menu WHERE name = ?", (name,))
         row = self.cursor.fetchone()
         return MenuItem(*row) if row else None
     

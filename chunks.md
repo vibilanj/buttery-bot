@@ -105,3 +105,22 @@ def handle_order(message: types.Message) -> None:
     username = message.chat.username
     bot.register_next_step_handler(msg, handle_quantity_input, item.id, username)
 ```
+
+- Callback handler for inline keyboard
+```python
+    @bot.callback_query_handler(func=lambda call: call.data.startswith("item_"))
+    def handle_item_selection(call:types.CallbackQuery) -> None:
+        data = call.data.split('_')
+        item_id = data[1]
+        item = db.get_menu_item(item_id)
+        if not item:
+            # TODO: throw error
+            pass
+
+        msg = bot.send_message(
+            call.message.chat.id,
+            f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})"
+        )
+        username = call.message.chat.username
+        bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)
+```

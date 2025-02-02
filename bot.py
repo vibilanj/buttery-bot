@@ -77,93 +77,72 @@ if __name__ == "__main__":
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
         
-        keyboard = types.InlineKeyboardMarkup()
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for item in menu:
-            button = types.InlineKeyboardButton(
-                text=f"{item.name} - ${item.price:.2f}",
-                callback_data=f"item_{item.id}"
-            )
+            button = types.KeyboardButton(f"{item.name} - ${item.price:.2f}")
             keyboard.add(button)
 
-        bot.send_message(message.chat.id, formatted_message, reply_markup=keyboard, parse_mode="Markdown")
+        msg = bot.send_message(
+            message.chat.id,
+            formatted_message,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        bot.register_next_step_handler(msg, handle_item_selection)
 
-    # Bot query handlers
+    # Bot Next Step Handlers
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("item_"))
-    def handle_item_selection(call:types.CallbackQuery) -> None:
-        data = call.data.split('_')
-        item_id = data[1]
-        item = db.get_menu_item(item_id)
+    def handle_item_selection(message:types.Message) -> None:
+        item_name, _ = message.text.split(" - ")
+        item = db.get_menu_item_by_name(item_name)
         if not item:
-            # TODO: throw error
-            pass
+            pass # TODO: throw error
+
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        keyboard.add(types.KeyboardButton("1"), types.KeyboardButton("2"))
 
         msg = bot.send_message(
-            call.message.chat.id,
-            f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})"
+            message.chat.id,
+            f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})",
+            reply_markup=keyboard
         )
-        username = call.message.chat.username
-        bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)
+        bot.register_next_step_handler(msg, handle_quantity_input, item.id)
 
+    def handle_quantity_input(message:types.Message, item_id:int) -> None:
+        quantity = int(message.text)
+        # TODO: do proper error checking
+        # TODO: check that they have not made an order for that item already 
 
-    # Bot Callback Handlers
-    def handle_quantity_input(message:types.Message, item_id:int, username:str) -> None:
-        chat_id = message.chat.id
-        try:
-            quantity = int(message.text)
-            if quantity <= 0:
-                raise ValueError("Quantity must be greater than 0.")
-            # TODO: handle when exceeding max quantity
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
 
-            db.insert_single_order(username, item_id, quantity)
-
-            msg = bot.send_message(
-                chat_id,
-                "Would you like to add another item to your order? (yes/no)"
-            )
-            bot.register_next_step_handler(msg, handle_add_another_item)
-        except ValueError:
-            bot.send_message(
-                chat_id,
-                "Invalid quantity. Please enter a valid number greater than 0."
-            )
-            item = db.get_menu_item(item_id)
-            if not item:
-                # TODO: throw error
-                pass
-
-            msg = bot.send_message(
-                chat_id,
-                f"How many {item.name}s would you like to order? (Price per item: ${item.price:.2f})"
-            )
-            bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)
+        db.insert_single_order(message.chat.username, item_id, quantity)
+        msg = bot.send_message(
+            message.chat.id,
+            "Would you like to add another item to your order? (Yes/No)",
+            reply_markup=keyboard
+        )
+        bot.register_next_step_handler(msg, handle_add_another_item)
 
     def handle_add_another_item(message:types.Message) -> None:
-        if message.text.lower() == "yes":
+        if message.text == "Yes":
             make_order(message)
-        elif message.text.lower() == "no":
+        elif message.text == "No":
             finalise_order(message.chat.id, message.chat.username)
-        else:
-            bot.send_message(message.chat.id, "Please answer with yes/no.")
-            msg = bot.send_message(message.chat.id, "Would you like to add another item to your order? (yes/no)")
-            bot.register_next_step_handler(msg, handle_add_another_item)
-
 
     def finalise_order(chat_id:int, username:str) -> None:
         pending_order_ids = db.get_pending_orders_for_username(username)
         # TODO: handle if multiple pending orders
         pending_order_id = pending_order_ids[0]
 
-        # Get full order information
         order_items = db.get_order_items_for_order_id(pending_order_id)
         order_summary = "Your Order:\n"
         total_price = Decimal(0)
 
         for order_item in order_items:
-            item = db.get_menu_item(order_item.menu_id)
+            item = db.get_menu_item_by_id(order_item.menu_id)
             if not item:
-                # TODO: throw error
-                pass
+                pass # TODO: throw error
 
             item_price = Decimal(item.price) * Decimal(order_item.quantity)
             total_price += item_price
