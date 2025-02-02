@@ -70,3 +70,16 @@ shutil.copy('kitchen_bot_template.db', current_db)
 print(f"Database archived as {archived_db}. New database created for {timestamp}.")
 
 ```
+
+- Multiple connection pool
+```python
+thread_local = threading.local()
+
+    def _get_conn(self):
+        if not hasattr(thread_local, 'conn'):
+            # Open connection with check_same_thread=False for multi-threaded mode
+            thread_local.conn = sqlite3.connect(self.db_file, check_same_thread=False)
+            thread_local.cursor = thread_local.conn.cursor()
+            logging.info(f"Opened new connection for thread: {threading.current_thread().name}")
+        return thread_local.conn, thread_local.cursor
+```

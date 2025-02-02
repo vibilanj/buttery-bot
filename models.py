@@ -1,19 +1,19 @@
 import logging
 import sqlite3
 
-from decimal import Decimal
-from enum import Enum
+from constants import OrderStatus
 
 logger = logging.getLogger(__name__)
 
 DB_FILE = "buttery.db"
 
-class OrderStatus(Enum):
-    AwaitingPayment = 1
-    Processing = 2
-    Completed = 3
-    Cancelled = 4
-
+def add_log(msg):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            logging.info(msg)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 class Database:
     def __init__(self, db_file=DB_FILE):
@@ -24,13 +24,13 @@ class Database:
         # TODO: enable wal mode?
         # self._enable_wal_mode()
 
-    def _enable_wal_mode(self):
-        try:
-            self.cursor.execute("PRAGMA journal_mode=WAL;")
-            self.conn.commit()
-            logging.info(f"Enabled WAL mode on database: {self.db_file}")
-        except sqlite3.Error as e:
-            logging.error(f"Error enabling WAL mode: {e}")
+    # def _enable_wal_mode(self):
+    #     try:
+    #         self.cursor.execute("PRAGMA journal_mode=WAL;")
+    #         self.conn.commit()
+    #         logging.info(f"Enabled WAL mode on database: {self.db_file}")
+    #     except sqlite3.Error as e:
+    #         logging.error(f"Error enabling WAL mode: {e}")
 
     def __del__(self):
         """Close the database connection when the object is deleted."""
@@ -60,7 +60,6 @@ class Database:
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 customer_name TEXT NOT NULL,
-                total_price DECIMAL NOT NULL,
                 status TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -82,58 +81,94 @@ class Database:
         self.conn.commit()
         logging.info("Initialised database and created tables.")
 
+    # Create
     def insert_menu_item(self, name, quantity, price):
         """Insert a new item into the menu."""
         query = "INSERT INTO menu (name, quantity, price) VALUES (?, ?, ?)"
         self.cursor.execute(query, (name, quantity, price))
 
-    def insert_order(self, customer_name, ordered_items):
-        """Insert a new order."""
+    def insert_single_order(self, username, item_id, quantity):
+        """Insert a new single order."""
+        self.cursor.execute("SELECT id FROM orders WHERE customer_name = ? AND status = ?", (username, OrderStatus.Pending.name,))
+        existing_order = self.cursor.fetchone()
 
-        # First, calculate the total price for the order
-        total_price = Decimal(0)
-        for item_name, quantity in ordered_items:
-            self.cursor.execute("SELECT price FROM menu WHERE name = ?", (item_name,))
-            result = self.cursor.fetchone()
-            if result:
-                price = Decimal(result[0])
-                total_price += price * Decimal(quantity)
-            else:
-                # TODO: log error here
-                raise ValueError(f"Item '{item_name}' not found in menu.")
+        if not existing_order:
+            self.cursor.execute("INSERT INTO orders (customer_name, status) VALUES (?, ?)", (username, OrderStatus.Pending.name))
+            order_id = self.cursor.lastrowid
+            self.cursor.execute("INSERT INTO order_items (order_id, menu_id, quantity) VALUES (?, ?, ?)",
+                                (order_id, item_id, quantity))
+        else:
+            order_id = existing_order[0]
+            self.cursor.execute("SELECT * from order_items WHERE order_id = ? AND menu_id = ?", (order_id, item_id))
+            existing_order_item = self.cursor.fetchone()
 
-        # Insert the order into the orders table
-        self.cursor.execute("INSERT INTO orders (customer_name, total_price, status) VALUES (?, ?, ?)",
-                            (customer_name, str(total_price), OrderStatus.AwaitingPayment.name))
-        order_id = self.cursor.lastrowid
-
-        # Insert each item into the order_items table
-        for item_name, quantity in ordered_items:
-            self.cursor.execute("SELECT id FROM menu WHERE name = ?", (item_name,))
-            result = self.cursor.fetchone()
-            if result:
-                menu_id = result[0]
-                # Insert the order item into the order_items table
+            if not existing_order_item:
                 self.cursor.execute("INSERT INTO order_items (order_id, menu_id, quantity) VALUES (?, ?, ?)",
-                                    (order_id, menu_id, quantity))
+                                    (order_id, item_id, quantity))
             else:
-                # TODO: log error here
-                raise ValueError(f"Item '{item_name}' not found in menu.")
-        
-        self.conn.commit()
-        logging.info(f"Order for {customer_name} with {len(ordered_items)} items added successfully.")
+                existing_quantity = existing_order_item[2]
+                updated_quantity = existing_quantity + quantity
+                self.cursor.execute("UPDATE order_items SET quantity = ? WHERE order_id = ? and menu_id = ?",
+                                    (updated_quantity, order_id, item_id))
 
+        self.conn.commit()
+        logging.info(f"Order for {username} of {quantity}x Item {item_id} added successfully.")
+
+    # Read
+    @add_log("Fetched menu.")
     def get_menu(self):
         """Fetch all items from the menu."""
         query = "SELECT * FROM menu"
         self.cursor.execute(query)
         return self.cursor.fetchall()
     
+    def get_menu_item(self, id):
+        """Fetch menu item by id."""
+        query = "SELECT * FROM menu WHERE id = ?"
+        self.cursor.execute(query, (id,))
+        return self.cursor.fetchone()
+    
+    @add_log("Fetched orders")
     def get_orders(self):
         """Fetch all orders."""
         query = "SELECT * FROM orders"
         self.cursor.execute(query)
         return self.cursor.fetchall()
+    
+    def get_pending_orders_for_username(self, username):
+        """Fetch all pending orders for a username."""
+        query = "SELECT id FROM orders WHERE customer_name = ? AND status = ?"
+        self.cursor.execute(query, (username, OrderStatus.Pending.name))
+        return self.cursor.fetchall()
+    
+    def get_order_items_for_order_id(self, order_id):
+        """Fetch all order items for a particular order."""
+        query = "SELECT * from order_items WHERE order_id = ?"
+        self.cursor.execute(query, (order_id,))
+        return self.cursor.fetchall()
+
+    # Update
+    def update_order_status(self, order_id, status: OrderStatus):
+        """Update order status."""
+        query = "UPDATE orders SET status = ? WHERE id = ?"
+        self.cursor.execute(query, (status.name, order_id))
+        self.conn.commit()
+        logging.info(f"Order {order_id} status updated to {status.name}.")
+
+    # Testing 
+    def _insert_bulk_order(self, customer_name, ordered_items):
+        """Insert a new bulk order."""
+        self.cursor.execute("INSERT INTO orders (customer_name, status) VALUES (?, ?)",
+                            (customer_name, OrderStatus.AwaitingPayment.name))
+        order_id = self.cursor.lastrowid
+
+        for item_id, quantity in ordered_items:
+            self.cursor.execute("INSERT INTO order_items (order_id, menu_id, quantity) VALUES (?, ?, ?)",
+                                (order_id, item_id, quantity))
+        
+        self.conn.commit()
+        logging.info(f"Order for {customer_name} with {len(ordered_items)} items added successfully.")
+
 
     def _populate_test_data(self):
         """Populate the database with some test data for testing purposes."""
@@ -143,8 +178,8 @@ class Database:
         self.insert_menu_item("Fries", 100, 2.49)
 
         # Insert some orders
-        self.insert_order("Alice", [("Pizza", 1), ("Fries", 2)])
-        self.insert_order("Bob", [("Burger", 2), ("Fries", 3)])
+        self._insert_bulk_order("Alice", [(1, 1), (3, 2)])
+        self._insert_bulk_order("Bob", [(2, 2), (3, 3)])
 
         logging.info("Test data populated.")
 
