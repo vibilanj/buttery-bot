@@ -4,8 +4,7 @@ import sqlite3
 from decimal import Decimal
 from enum import Enum
 
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 DB_FILE = "buttery.db"
 
