@@ -1,13 +1,14 @@
 import logging
 import sqlite3
 
-from constants import OrderStatus
+from constants import Order, OrderItem, OrderStatus, MenuItem
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 DB_FILE = "buttery.db"
 
-def add_log(msg):
+def add_log(msg: str):
     def decorator(func):
         def wrapper(*args, **kwargs):
             logging.info(msg)
@@ -16,7 +17,7 @@ def add_log(msg):
     return decorator
 
 class Database:
-    def __init__(self, db_file=DB_FILE):
+    def __init__(self, db_file:str=DB_FILE) -> None:
         self.db_file = db_file
         self.conn = sqlite3.connect(db_file, check_same_thread=False if sqlite3.threadsafety == 3 else True)
         self.cursor = self.conn.cursor()
@@ -24,7 +25,7 @@ class Database:
         # TODO: enable wal mode?
         # self._enable_wal_mode()
 
-    # def _enable_wal_mode(self):
+    # def _enable_wal_mode(self) -> None:
     #     try:
     #         self.cursor.execute("PRAGMA journal_mode=WAL;")
     #         self.conn.commit()
@@ -32,20 +33,20 @@ class Database:
     #     except sqlite3.Error as e:
     #         logging.error(f"Error enabling WAL mode: {e}")
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Close the database connection when the object is deleted."""
         if self.conn:
             self.conn.close()
             logging.info(f"Closed connection to database: {self.db_file}")
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Gracefully shut down the database by committing changes and closing the connection."""
         if self.conn:
             self.conn.commit()
             self.conn.close()
             logging.info(f"Database connection to {self.db_file} has been shut down.")
 
-    def initialise(self):
+    def initialise(self) -> None:
         """Create necessary tables if they don't already exist."""
 
         CREATE_MENU_TABLE = """
@@ -82,12 +83,12 @@ class Database:
         logging.info("Initialised database and created tables.")
 
     # Create
-    def insert_menu_item(self, name, quantity, price):
+    def insert_menu_item(self, name:str, quantity:int, price:float) -> None:
         """Insert a new item into the menu."""
         query = "INSERT INTO menu (name, quantity, price) VALUES (?, ?, ?)"
         self.cursor.execute(query, (name, quantity, price))
 
-    def insert_single_order(self, username, item_id, quantity):
+    def insert_single_order(self, username:str, item_id:int, quantity:int) -> None:
         """Insert a new single order."""
         self.cursor.execute("SELECT id FROM orders WHERE customer_name = ? AND status = ?", (username, OrderStatus.Pending.name,))
         existing_order = self.cursor.fetchone()
@@ -116,39 +117,41 @@ class Database:
 
     # Read
     @add_log("Fetched menu.")
-    def get_menu(self):
+    def get_menu(self) -> list[MenuItem]:
         """Fetch all items from the menu."""
-        query = "SELECT * FROM menu"
-        self.cursor.execute(query)
-        return self.cursor.fetchall()
+        self.cursor.execute("SELECT * FROM menu")
+        rows = self.cursor.fetchall()
+        return [MenuItem(*row) for row in rows]
     
-    def get_menu_item(self, id):
+    def get_menu_item(self, id:int) -> Optional[MenuItem]:
         """Fetch menu item by id."""
-        query = "SELECT * FROM menu WHERE id = ?"
-        self.cursor.execute(query, (id,))
-        return self.cursor.fetchone()
+        self.cursor.execute("SELECT * FROM menu WHERE id = ?", (id,))
+        row = self.cursor.fetchone()
+        return MenuItem(*row) if row else None
     
     @add_log("Fetched orders")
-    def get_orders(self):
+    def get_orders(self) -> list[Order]:
         """Fetch all orders."""
-        query = "SELECT * FROM orders"
-        self.cursor.execute(query)
-        return self.cursor.fetchall()
+        self.cursor.execute("SELECT * FROM orders")
+        rows = self.cursor.fetchall()
+        return [Order(*row) for row in rows]
     
-    def get_pending_orders_for_username(self, username):
-        """Fetch all pending orders for a username."""
+    def get_pending_orders_for_username(self, username:str) -> list[int]:
+        """Fetch all pending order ids for a username."""
         query = "SELECT id FROM orders WHERE customer_name = ? AND status = ?"
         self.cursor.execute(query, (username, OrderStatus.Pending.name))
-        return self.cursor.fetchall()
-    
-    def get_order_items_for_order_id(self, order_id):
+        rows = self.cursor.fetchall()
+        return [row[0] for row in rows]
+
+    def get_order_items_for_order_id(self, order_id:int) -> list[OrderItem]:
         """Fetch all order items for a particular order."""
         query = "SELECT * from order_items WHERE order_id = ?"
         self.cursor.execute(query, (order_id,))
-        return self.cursor.fetchall()
+        rows = self.cursor.fetchall()
+        return [OrderItem(*row) for row in rows]
 
     # Update
-    def update_order_status(self, order_id, status: OrderStatus):
+    def update_order_status(self, order_id:int, status:OrderStatus) -> None:
         """Update order status."""
         query = "UPDATE orders SET status = ? WHERE id = ?"
         self.cursor.execute(query, (status.name, order_id))
@@ -156,7 +159,7 @@ class Database:
         logging.info(f"Order {order_id} status updated to {status.name}.")
 
     # Testing 
-    def _insert_bulk_order(self, customer_name, ordered_items):
+    def _insert_bulk_order(self, customer_name:str, ordered_items: list[tuple[int, int]]) -> None:
         """Insert a new bulk order."""
         self.cursor.execute("INSERT INTO orders (customer_name, status) VALUES (?, ?)",
                             (customer_name, OrderStatus.AwaitingPayment.name))
@@ -170,7 +173,7 @@ class Database:
         logging.info(f"Order for {customer_name} with {len(ordered_items)} items added successfully.")
 
 
-    def _populate_test_data(self):
+    def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
         self.insert_menu_item("Pizza", 50, 9.99)
@@ -183,7 +186,7 @@ class Database:
 
         logging.info("Test data populated.")
 
-    def _reset_database(self):
+    def _reset_database(self) -> None:
         """Drop all tables and reset the database."""
         # Drop the tables to reset the database
         self.cursor.execute("DROP TABLE IF EXISTS menu;")

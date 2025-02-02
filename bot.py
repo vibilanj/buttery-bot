@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from models import Database
 from telebot import types
 
-def setup_logging(log_dir="logs"):
+def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
 
     if not os.path.exists(log_dir):
@@ -46,11 +46,11 @@ if __name__ == "__main__":
     # Bot message handlers
 
     @bot.message_handler(commands=["start"])
-    def send_welcome(message):
+    def send_welcome(message:types.Message) -> None:
         bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot!")
 
     @bot.message_handler(commands=["help"])
-    def help(message):
+    def help(message:types.Message) -> None:
         # TODO: write a helpful message
         commands = [
             ("/menu", ""),
@@ -59,25 +59,29 @@ if __name__ == "__main__":
         pass
 
     @bot.message_handler(commands=["menu"])
-    def show_menu(message):
+    def show_menu(message:types.Message) -> None:
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\n"
         for item in menu:
-            _, name, _, price = item
-            formatted_message += f"• {name}  (${price:.2f})\n"
+            formatted_message += f"• {item.name}  (${item.price:.2f})\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
+    # TODO: admin view of orders
+    # @bot.message_handler(commands=["listorders"])
+    # def show_menu(message:types.Message) -> None:
+    #     orders = db.get_orders()
+    #     bot.send_message(message.chat.id, str(orders))
+
     @bot.message_handler(commands=["order"])
-    def make_order(message):
+    def make_order(message:types.Message) -> None:
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\n"
         
         keyboard = types.InlineKeyboardMarkup()
         for item in menu:
-            id, name, _, price = item
             button = types.InlineKeyboardButton(
-                text=f"{name} - ${price:.2f}",
-                callback_data=f"item_{id}"
+                text=f"{item.name} - ${item.price:.2f}",
+                callback_data=f"item_{item.id}"
             )
             keyboard.add(button)
 
@@ -86,21 +90,24 @@ if __name__ == "__main__":
     # Bot query handlers
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("item_"))
-    def handle_item_selection(call):
+    def handle_item_selection(call:types.CallbackQuery) -> None:
         data = call.data.split('_')
         item_id = data[1]
-        _, item_name, _, item_price = db.get_menu_item(item_id)
+        item = db.get_menu_item(item_id)
+        if not item:
+            # TODO: throw error
+            pass
 
         msg = bot.send_message(
             call.message.chat.id,
-            f"How many {item_name}s would you like to order? (Price per item: ${item_price:.2f})"
+            f"How many {item.name}s would you like to order? (Price per item: ${item.price:.2f})"
         )
         username = call.message.chat.username
         bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)
 
 
     # Bot Callback Handlers
-    def handle_quantity_input(message, item_id, username):
+    def handle_quantity_input(message:types.Message, item_id:int, username:str) -> None:
         chat_id = message.chat.id
         try:
             quantity = int(message.text)
@@ -120,14 +127,18 @@ if __name__ == "__main__":
                 chat_id,
                 "Invalid quantity. Please enter a valid number greater than 0."
             )
-            _, item_name, _, item_price = db.get_menu_item(item_id)
+            item = db.get_menu_item(item_id)
+            if not item:
+                # TODO: throw error
+                pass
+
             msg = bot.send_message(
                 chat_id,
-                f"How many {item_name}s would you like to order? (Price per item: ${item_price:.2f})"
+                f"How many {item.name}s would you like to order? (Price per item: ${item.price:.2f})"
             )
             bot.register_next_step_handler(msg, handle_quantity_input, item_id, username)
 
-    def handle_add_another_item(message):
+    def handle_add_another_item(message:types.Message) -> None:
         if message.text.lower() == "yes":
             make_order(message)
         elif message.text.lower() == "no":
@@ -138,21 +149,25 @@ if __name__ == "__main__":
             bot.register_next_step_handler(msg, handle_add_another_item)
 
 
-    def finalise_order(chat_id, username):
+    def finalise_order(chat_id:int, username:str) -> None:
         pending_order_ids = db.get_pending_orders_for_username(username)
         # TODO: handle if multiple pending orders
-        pending_order_id = pending_order_ids[0][0]
+        pending_order_id = pending_order_ids[0]
 
         # Get full order information
         order_items = db.get_order_items_for_order_id(pending_order_id)
         order_summary = "Your Order:\n"
         total_price = Decimal(0)
 
-        for _, menu_id, quantity in order_items:
-            _, name, _, price = db.get_menu_item(menu_id)
-            item_price = Decimal(price) * Decimal(quantity)
+        for order_item in order_items:
+            item = db.get_menu_item(order_item.menu_id)
+            if not item:
+                # TODO: throw error
+                pass
+
+            item_price = Decimal(item.price) * Decimal(order_item.quantity)
             total_price += item_price
-            order_summary += f"{name} x {quantity} = ${item_price:.2f}\n"
+            order_summary += f"{item.name} x {order_item.quantity} = ${item_price:.2f}\n"
         order_summary += f"\nTotal: ${total_price:.2f}"        
         # TODO: add payment details QR code here and thank you for your order
 
