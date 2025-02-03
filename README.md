@@ -36,9 +36,9 @@
 - [ ] Allow users to edit their order if status is AwaitingPayment (or Pending)
 - [ ] Send payment QR code and menu poster. 
 - [ ] Setup script to archive database, convert database into a nice viewing format in a pinch
-- [ ] Update commands in BotFather
 - [ ] Test with real users and concurrency
     - if not, consider using thread local connections or SQLachemy
+- [ ] Move backend functionality to API (overkill?)
 
 ## Learning 
 
@@ -46,4 +46,4 @@
 - Enum type
 - Dealing with decimal calculations
 - Logging 
-- NamedTuple, Dataclass
+- NamedTuple vs Dataclass

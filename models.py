@@ -139,8 +139,10 @@ class Database:
         logging.info(f"Order for {username} of {quantity}x Item {item_id} added successfully.")
 
 
+    # TODO: add important logs
+
     # Read
-    @add_log("Fetched menu.")
+    ## menu
     def get_menu(self) -> list[MenuItem]:
         """Fetch all items from the menu."""
         self.cursor.execute("SELECT * FROM menu")
@@ -159,7 +161,7 @@ class Database:
         row = self.cursor.fetchone()
         return cast_to_menu_item(row) if row else None
     
-    @add_log("Fetched orders")
+    ## orders
     def get_orders(self) -> list[Order]:
         """Fetch all orders."""
         self.cursor.execute("SELECT * FROM orders")
@@ -171,19 +173,6 @@ class Database:
         self.cursor.execute("SELECT id FROM orders")
         rows = self.cursor.fetchall()
         return [int(row[0]) for row in rows]
-
-    def get_order_details(self) -> list[OrderDetail]:
-        """Fetch full order details from view."""
-        self.cursor.execute("SELECT * FROM order_details")
-        rows = self.cursor.fetchall()
-        return [cast_to_order_detail(row) for row in rows]
-        
-    def get_order_details_by_status(self, status:OrderStatus) -> list[OrderDetail]:
-        """Fetch full order details from view by status."""
-        query = "SELECT * FROM order_details WHERE status = ?" 
-        self.cursor.execute(query, (status.name,))
-        rows = self.cursor.fetchall()
-        return [cast_to_order_detail(row) for row in rows]
 
     def get_order_ids_by_status(self, status:OrderStatus) -> list[int]:
         """Fetch order ids by status."""
@@ -199,13 +188,6 @@ class Database:
         rows = self.cursor.fetchall()
         return [int(row[0]) for row in rows]
 
-    def get_order_items_for_order_id(self, order_id:int) -> list[OrderItem]:
-        """Fetch all order items for a particular order."""
-        query = "SELECT * from order_items WHERE order_id = ?"
-        self.cursor.execute(query, (order_id,))
-        rows = self.cursor.fetchall()
-        return [cast_to_order_item(row) for row in rows]
-    
     def get_status_by_customer_name(self, username:str) -> Optional[OrderStatus]:
         """Fetch the order status by cusomter_name."""
         self.cursor.execute("SELECT status FROM orders WHERE customer_name = ?", (username,))
@@ -218,6 +200,28 @@ class Database:
         row = self.cursor.fetchone()
         return getattr(OrderStatus, row[0], None) if row else None
     
+    ## order_items
+    def get_order_items_for_order_id(self, order_id:int) -> list[OrderItem]:
+        """Fetch all order items for a particular order."""
+        query = "SELECT * from order_items WHERE order_id = ?"
+        self.cursor.execute(query, (order_id,))
+        rows = self.cursor.fetchall()
+        return [cast_to_order_item(row) for row in rows]
+    
+    ## order_details
+    def get_order_details(self) -> list[OrderDetail]:
+        """Fetch full order details from view."""
+        self.cursor.execute("SELECT * FROM order_details")
+        rows = self.cursor.fetchall()
+        return [cast_to_order_detail(row) for row in rows]
+        
+    def get_order_details_by_status(self, status:OrderStatus) -> list[OrderDetail]:
+        """Fetch full order details from view by status."""
+        query = "SELECT * FROM order_details WHERE status = ?" 
+        self.cursor.execute(query, (status.name,))
+        rows = self.cursor.fetchall()
+        return [cast_to_order_detail(row) for row in rows]
+
     # Check
     def check_order_id_exists(self, order_id:int) -> bool:
         """Check that order id exists."""
@@ -227,13 +231,6 @@ class Database:
         return row[0] > 0
 
     # Update
-    def update_order_status(self, order_id:int, status:OrderStatus) -> None:
-        """Update order status."""
-        query = "UPDATE orders SET status = ? WHERE id = ?"
-        self.cursor.execute(query, (status.name, order_id))
-        self.conn.commit()
-        logging.info(f"Order {order_id} status updated to {status.name}.")
-
     def update_menu_item_quantity(self, item_id:int, quantity:int) -> None:
         """Update menu item quantity."""
         query = "UPDATE menu SET quantity = ? WHERE id = ?"
@@ -241,6 +238,12 @@ class Database:
         self.conn.commit()
         logging.info(f"Menu item {item_id} quantity updated to {quantity}.")
 
+    def update_order_status(self, order_id:int, status:OrderStatus) -> None:
+        """Update order status."""
+        query = "UPDATE orders SET status = ? WHERE id = ?"
+        self.cursor.execute(query, (status.name, order_id))
+        self.conn.commit()
+        logging.info(f"Order {order_id} status updated to {status.name}.")
 
     # Testing 
     def _insert_bulk_order(self, customer_name:str, ordered_items: list[tuple[int, int]]) -> None:

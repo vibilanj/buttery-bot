@@ -10,6 +10,12 @@ def convert_commands_for_botfather(include_admin_only:bool):
     ]
     return "\n".join(converted)
 
+def archive_db():
+    pass
+
+def visualise_db():
+    pass
+
 if __name__ == "__main__":
     out = convert_commands_for_botfather(False)
     print(out)
