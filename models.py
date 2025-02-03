@@ -166,6 +166,12 @@ class Database:
         rows = self.cursor.fetchall()
         return [cast_to_order(row) for row in rows]
 
+    def get_order_ids(self) -> list[int]:
+        """Fetch all order ids."""
+        self.cursor.execute("SELECT id FROM orders")
+        rows = self.cursor.fetchall()
+        return [int(row[0]) for row in rows]
+
     def get_order_details(self) -> list[OrderDetail]:
         """Fetch full order details from view."""
         self.cursor.execute("SELECT * FROM order_details")
@@ -179,12 +185,19 @@ class Database:
         rows = self.cursor.fetchall()
         return [cast_to_order_detail(row) for row in rows]
 
+    def get_order_ids_by_status(self, status:OrderStatus) -> list[int]:
+        """Fetch order ids by status."""
+        query = "SELECT * FROM orders WHERE status = ?" 
+        self.cursor.execute(query, (status.name,))
+        rows = self.cursor.fetchall()
+        return [int(row[0]) for row in rows]
+
     def get_pending_orders_for_username(self, username:str) -> list[int]:
         """Fetch all pending order ids for a username."""
         query = "SELECT id FROM orders WHERE customer_name = ? AND status = ?"
         self.cursor.execute(query, (username, OrderStatus.Pending.name))
         rows = self.cursor.fetchall()
-        return [row[0] for row in rows]
+        return [int(row[0]) for row in rows]
 
     def get_order_items_for_order_id(self, order_id:int) -> list[OrderItem]:
         """Fetch all order items for a particular order."""

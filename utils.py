@@ -22,6 +22,24 @@ def display_status(status:OrderStatus) -> str:
         case _:
             return "Unknown Status"
 
+def parse_status(status_str:str) -> OrderStatus:
+    """Convert a human-readable string back to the corresponding OrderStatus."""
+    match status_str:
+        case "⏳ Pending":
+            return OrderStatus.Pending
+        case "💳 Awaiting Payment":
+            return OrderStatus.AwaitingPayment
+        case "🔄 Processing":
+            return OrderStatus.Processing
+        case "🍽️ Order Ready":
+            return OrderStatus.OrderReady
+        case "✅ Order Collected":
+            return OrderStatus.OrderCollected
+        case "❌ Cancelled":
+            return OrderStatus.Cancelled
+        case _:
+            return OrderStatus.Pending
+
 # TODO: when can orders be cancelled
 def status_transition(status:OrderStatus) -> OrderStatus:
     STATUS_TRANSITIONS = {
