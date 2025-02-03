@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from functools import wraps
 from models import Database
 from telebot import types
+from utils import display_status, sanitise_username
 
 def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
@@ -95,8 +96,8 @@ if __name__ == "__main__":
         if not status:
             message_text = "You do not have an active order."
         else:
-            # TODO: use map for more user friendly messages
-            message_text = f"The status of your order is {status.name}."
+            status = display_status(status)
+            message_text = f"The status of your order is {status}."
         bot.send_message(message.chat.id, message_text)
 
     def handle_item_selection(message:types.Message) -> None:
@@ -171,21 +172,19 @@ if __name__ == "__main__":
                 return f(message, *args, **kwargs)
         return wrapper
 
-    def sanitise_username(username:str) -> str:
-        """Escape underscores from usernames for markdown."""
-        return username.replace("_", "\_")
-
     @bot.message_handler(commands=["listorders"])
     @admin_only
-    def show_orders(message:types.Message) -> None:
-        orders = db.get_orders()
+    def show_order_details(message:types.Message) -> None:
+        order_details = db.get_order_details_from_view()
         formatted_message = "📃 *All Orders*\n"
-        for order in orders:
+        for order_detail in order_details:
             # TODO: make username easy to click with @ to message them?
-            username = sanitise_username(order.customer_name)
-            formatted_message += f"• {username} - {order.status}\n"
+            username = sanitise_username(order_detail.customer_name)
+            status = display_status(order_detail.status)
+            formatted_message += f"• {username} - {status}\n"
+            formatted_message += f"    {order_detail.order_contents}\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
-    
+
     # TODO: orders view for AwaitingPayment to move to Processing
     # TODO: orders view for Processing to cook
     # TODO: change status when OrderReady, OrderCollected, Cancelled
@@ -195,7 +194,6 @@ if __name__ == "__main__":
     #     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     #     # TODO: add additional views/options
     #     options = ["Update AwaitingPayment Orders", "View Processing Orders", "Update Processing / OrderReady"]
-
 
     #     msg = bot.send_message(message.chat.id, "What would you like to do?", reply_markup=keyboard)
 

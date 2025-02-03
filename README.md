@@ -39,6 +39,7 @@
 ## Todo
 
 - [x] How to capture and store logs
+- [ ] Setup script to archive database, convert database into a nice viewing format in a pinch
 - [ ] Update commands in BotFather
 - [ ] Test with real users and concurrency
     - if not, consider using thread local connections or SQLachemy
@@ -49,3 +50,4 @@
 - Enum type
 - Dealing with decimal calculations
 - Logging 
+- NamedTuple, Dataclass

@@ -1,8 +1,9 @@
 import logging
 import sqlite3
 
-from constants import Order, OrderItem, OrderStatus, MenuItem
+from constants import Order, OrderDetail, OrderItem, OrderStatus, MenuItem
 from typing import Optional
+from utils import cast_to_menu_item, cast_to_order, cast_to_order_item, cast_to_order_detail
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +79,30 @@ class Database:
             );
             """
 
+        # TODO: use json for order_contents instead? 
+        CREATE_ORDER_DETIALS_VIEW = """
+            CREATE VIEW IF NOT EXISTS order_details AS
+            SELECT 
+                o.id AS order_id,
+                o.customer_name,
+                o.status,
+                GROUP_CONCAT(m.name || ' (' || oi.quantity || ')', ', ') AS order_contents
+            FROM 
+                orders o
+            JOIN 
+                order_items oi ON o.id = oi.order_id
+            JOIN 
+                menu m ON oi.menu_id = m.id
+            GROUP BY 
+                o.id, o.customer_name, o.status;
+        """
+
         self.cursor.execute(CREATE_MENU_TABLE)
         self.cursor.execute(CREATE_ORDERS_TABLE)
         self.cursor.execute(CREATE_ORDER_ITEMS_TABLE)
+        self.cursor.execute(CREATE_ORDER_DETIALS_VIEW)
         self.conn.commit()
-        logging.info("Initialised database and created tables.")
+        logging.info("Initialised database and created tables and views.")
 
 
     # Create
@@ -125,27 +145,33 @@ class Database:
         """Fetch all items from the menu."""
         self.cursor.execute("SELECT * FROM menu")
         rows = self.cursor.fetchall()
-        return [MenuItem(*row) for row in rows]
+        return [cast_to_menu_item(row) for row in rows]
     
     def get_menu_item_by_id(self, id:int) -> Optional[MenuItem]:
         """Fetch menu item by id."""
         self.cursor.execute("SELECT * FROM menu WHERE id = ?", (id,))
         row = self.cursor.fetchone()
-        return MenuItem(*row) if row else None
+        return cast_to_menu_item(row) if row else None
     
     def get_menu_item_by_name(self, name:str) -> Optional[MenuItem]:
         """Fetch menu item by name."""
         self.cursor.execute("SELECT * FROM menu WHERE name = ?", (name,))
         row = self.cursor.fetchone()
-        return MenuItem(*row) if row else None
+        return cast_to_menu_item(row) if row else None
     
     @add_log("Fetched orders")
     def get_orders(self) -> list[Order]:
         """Fetch all orders."""
         self.cursor.execute("SELECT * FROM orders")
         rows = self.cursor.fetchall()
-        return [Order(*row) for row in rows]
-    
+        return [cast_to_order(row) for row in rows]
+
+    def get_order_details_from_view(self) -> list[OrderDetail]:
+        """Fetch all order information from the full_order_info view."""
+        self.cursor.execute("SELECT * FROM order_details")
+        rows = self.cursor.fetchall()
+        return [cast_to_order_detail(row) for row in rows]
+        
     def get_pending_orders_for_username(self, username:str) -> list[int]:
         """Fetch all pending order ids for a username."""
         query = "SELECT id FROM orders WHERE customer_name = ? AND status = ?"
@@ -158,14 +184,13 @@ class Database:
         query = "SELECT * from order_items WHERE order_id = ?"
         self.cursor.execute(query, (order_id,))
         rows = self.cursor.fetchall()
-        return [OrderItem(*row) for row in rows]
+        return [cast_to_order_item(row) for row in rows]
     
     def get_status(self, username:str) -> Optional[OrderStatus]:
         """Fetch the order status by username."""
         self.cursor.execute("SELECT status FROM orders WHERE customer_name = ?", (username,))
         row = self.cursor.fetchone()
-        return OrderStatus[row[0]] if row else None
-
+        return getattr(OrderStatus, row[0], None)
 
     # Update
     def update_order_status(self, order_id:int, status:OrderStatus) -> None:

@@ -29,3 +29,10 @@ class OrderItem(NamedTuple):
     order_id: int
     menu_id: int
     quantity: int
+
+
+class OrderDetail(NamedTuple):
+    order_id: int
+    customer_name: str
+    status : OrderStatus
+    order_contents: str
