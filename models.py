@@ -234,6 +234,13 @@ class Database:
         self.conn.commit()
         logging.info(f"Order {order_id} status updated to {status.name}.")
 
+    def update_menu_item_quantity(self, item_id:int, quantity:int) -> None:
+        """Update menu item quantity."""
+        query = "UPDATE menu SET quantity = ? WHERE id = ?"
+        self.cursor.execute(query, (quantity, item_id))
+        self.conn.commit()
+        logging.info(f"Menu item {item_id} quantity updated to {quantity}.")
+
 
     # Testing 
     def _insert_bulk_order(self, customer_name:str, ordered_items: list[tuple[int, int]]) -> None:
