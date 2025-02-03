@@ -114,7 +114,10 @@ def handle_order(message: types.Message) -> None:
         item_id = data[1]
         item = db.get_menu_item(item_id)
         if not item:
-            pass # TODO: throw error
+            logging.warning("Should be unreachable: {function_name} with {error}.")
+            bot.send_message(call.message.chat.id, "Please try again with {helpful message}.")
+            return
+
 
         msg = bot.send_message(
             call.message.chat.id,

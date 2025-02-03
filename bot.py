@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
-        # TODO: allow only one order per username
+        # TODO: allow only one order per username, maybe can make more after fulfilled?
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
         
@@ -106,7 +106,9 @@ if __name__ == "__main__":
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
         if not item:
-            pass # TODO: throw error
+            logging.warning("Should be unreachable: handle_item_selection with no item.")
+            bot.send_message(message.chat.id, "Please try again with an existing menu item.")
+            return
 
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         keyboard.add(types.KeyboardButton("1"), types.KeyboardButton("2"))
@@ -121,7 +123,8 @@ if __name__ == "__main__":
     def handle_quantity_input(message:types.Message, item_id:int) -> None:
         quantity = int(message.text)
         # TODO: do proper error checking
-        # TODO: check that they have not made an order for that item already 
+        # TODO: check that they have not made an order for that item already,
+        #   cannot be more than existing quantity 
 
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
@@ -142,7 +145,9 @@ if __name__ == "__main__":
 
     def finalise_order(chat_id:int, username:str) -> None:
         pending_order_ids = db.get_pending_orders_for_username(username)
-        # TODO: handle if multiple pending orders
+        if len(pending_order_id) != 1:
+            logging.warning("Should be unreachable: finalise_order with multiple pending orders.")
+            return
         pending_order_id = pending_order_ids[0]
 
         order_items = db.get_order_items_for_order_id(pending_order_id)
@@ -152,7 +157,9 @@ if __name__ == "__main__":
         for order_item in order_items:
             item = db.get_menu_item_by_id(order_item.menu_id)
             if not item:
-                pass # TODO: throw error
+                logging.warning("Should be unreachable: finalise_order with no item.")
+                bot.send_message(chat_id, "Please try again with an existing menu item.")
+                return
 
             item_price = Decimal(item.price) * Decimal(order_item.quantity)
             total_price += item_price
@@ -173,6 +180,8 @@ if __name__ == "__main__":
             status = display_status(status)
             message_text = f"The status of your order is {status}."
         bot.send_message(message.chat.id, message_text)
+
+    # TODO: view current order and allow edit order before certain status
 
     # Admin only message handlers
     def admin_only(f):
@@ -225,7 +234,6 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_manage_order)
 
     def handle_manage_order(message:types.Message) -> None:
-        # TODO: update when changed to enum
         option = message.text
         match option:
             case UpdateStatusOption.AwaitingPayment.value:
@@ -363,7 +371,9 @@ if __name__ == "__main__":
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
         if not item:
-            pass # TODO: throw error
+            logging.warning("Should be unreachable: handle_update_item_selection with no item.")
+            bot.send_message(message.chat.id, "Please try again with an existing menu item.")
+            return
 
         msg = bot.send_message(
             message.chat.id,
