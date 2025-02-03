@@ -114,8 +114,7 @@ def handle_order(message: types.Message) -> None:
         item_id = data[1]
         item = db.get_menu_item(item_id)
         if not item:
-            # TODO: throw error
-            pass
+            pass # TODO: throw error
 
         msg = bot.send_message(
             call.message.chat.id,

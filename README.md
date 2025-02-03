@@ -8,7 +8,7 @@
 - Show order status to customer.
 - Send order and customer information to cooking team.
 - Admin hidden commands to
-    - set available items and quantity
+    - set available items and quantity (?)
     - update available quantity
     - manually approve payment
     - update order status
@@ -22,23 +22,19 @@
 - Authentication using hardcoded user IDs for admin features
 - Manage secrets with environment file
 
-### Models
+### Order flow
 
-- Menu
-    - Name
-    - Quantity
-    - Price
-    - Picture (?)
-- Order
-    - Name
-    - Items (list of items)
-    - Total Price
-    - Status (enum)
+0. Pending (only transient)
+1. AwaitingPayment
+2. Processing
+3. OrderReady
+4. OrderCollected / Cancelled
 
 
 ## Todo
 
-- [x] How to capture and store logs
+- [ ] Allow users to edit their order if status is AwaitingPayment (or Pending)
+- [ ] Send payment QR code and menu poster. 
 - [ ] Setup script to archive database, convert database into a nice viewing format in a pinch
 - [ ] Update commands in BotFather
 - [ ] Test with real users and concurrency

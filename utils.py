@@ -22,6 +22,15 @@ def display_status(status:OrderStatus) -> str:
         case _:
             return "Unknown Status"
 
+# TODO: when can orders be cancelled
+def status_transition(status:OrderStatus) -> OrderStatus:
+    STATUS_TRANSITIONS = {
+        OrderStatus.AwaitingPayment: [OrderStatus.Processing, OrderStatus.Cancelled],
+        OrderStatus.Processing: [OrderStatus.OrderReady],
+        OrderStatus.OrderReady: [OrderStatus.OrderCollected],
+    }
+    return STATUS_TRANSITIONS.get(status, [])
+
 # Type casting functions
 def cast_to_menu_item(row) -> MenuItem:
     return MenuItem(

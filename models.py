@@ -166,12 +166,19 @@ class Database:
         rows = self.cursor.fetchall()
         return [cast_to_order(row) for row in rows]
 
-    def get_order_details_from_view(self) -> list[OrderDetail]:
-        """Fetch all order information from the full_order_info view."""
+    def get_order_details(self) -> list[OrderDetail]:
+        """Fetch full order details from view."""
         self.cursor.execute("SELECT * FROM order_details")
         rows = self.cursor.fetchall()
         return [cast_to_order_detail(row) for row in rows]
         
+    def get_order_details_by_status(self, status:OrderStatus) -> list[OrderDetail]:
+        """Fetch full order details from view by status."""
+        query = "SELECT * FROM order_details WHERE status = ?" 
+        self.cursor.execute(query, (status.name,))
+        rows = self.cursor.fetchall()
+        return [cast_to_order_detail(row) for row in rows]
+
     def get_pending_orders_for_username(self, username:str) -> list[int]:
         """Fetch all pending order ids for a username."""
         query = "SELECT id FROM orders WHERE customer_name = ? AND status = ?"
@@ -186,11 +193,25 @@ class Database:
         rows = self.cursor.fetchall()
         return [cast_to_order_item(row) for row in rows]
     
-    def get_status(self, username:str) -> Optional[OrderStatus]:
-        """Fetch the order status by username."""
+    def get_status_by_customer_name(self, username:str) -> Optional[OrderStatus]:
+        """Fetch the order status by cusomter_name."""
         self.cursor.execute("SELECT status FROM orders WHERE customer_name = ?", (username,))
         row = self.cursor.fetchone()
         return getattr(OrderStatus, row[0], None)
+
+    def get_status_by_id(self, order_id:int) -> Optional[OrderStatus]:
+        """Fetch the order status by id."""
+        self.cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+        row = self.cursor.fetchone()
+        return getattr(OrderStatus, row[0], None)
+    
+    # Check
+    def check_order_id_exists(self, order_id:int) -> bool:
+        """Check that order id exists."""
+        query = "SELECT COUNT(1) from orders WHERE id = ?"
+        self.cursor.execute(query, (order_id,))
+        row = self.cursor.fetchone()
+        return row[0] > 0
 
     # Update
     def update_order_status(self, order_id:int, status:OrderStatus) -> None:

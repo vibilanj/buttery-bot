@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from functools import wraps
 from models import Database
 from telebot import types
-from utils import display_status, sanitise_username
+from utils import display_status, sanitise_username, status_transition
 
 def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
@@ -90,16 +90,6 @@ if __name__ == "__main__":
         )
         bot.register_next_step_handler(msg, handle_item_selection)
 
-    @bot.message_handler(commands=["status"])
-    def check_status(message:types.Message) -> None:
-        status = db.get_status(message.chat.username)
-        if not status:
-            message_text = "You do not have an active order."
-        else:
-            status = display_status(status)
-            message_text = f"The status of your order is {status}."
-        bot.send_message(message.chat.id, message_text)
-
     def handle_item_selection(message:types.Message) -> None:
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
@@ -161,6 +151,15 @@ if __name__ == "__main__":
         db.update_order_status(pending_order_id, OrderStatus.AwaitingPayment)
         bot.send_message(chat_id, order_summary, parse_mode="Markdown")
 
+    @bot.message_handler(commands=["status"])
+    def check_status(message:types.Message) -> None:
+        status = db.get_status_by_customer_name(message.chat.username)
+        if not status:
+            message_text = "You do not have an active order."
+        else:
+            status = display_status(status)
+            message_text = f"The status of your order is {status}."
+        bot.send_message(message.chat.id, message_text)
 
     # Admin only message handlers
     def admin_only(f):
@@ -175,7 +174,7 @@ if __name__ == "__main__":
     @bot.message_handler(commands=["listorders"])
     @admin_only
     def show_order_details(message:types.Message) -> None:
-        order_details = db.get_order_details_from_view()
+        order_details = db.get_order_details()
         formatted_message = "📃 *All Orders*\n"
         for order_detail in order_details:
             # TODO: make username easy to click with @ to message them?
@@ -185,18 +184,131 @@ if __name__ == "__main__":
             formatted_message += f"    {order_detail.order_contents}\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
-    # TODO: orders view for AwaitingPayment to move to Processing
-    # TODO: orders view for Processing to cook
-    # TODO: change status when OrderReady, OrderCollected, Cancelled
-    # @bot.message_handler(commands=["manageorders"])
-    # @admin_only
-    # def manage_orders(message:types.Message) -> None:
-    #     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    #     # TODO: add additional views/options
-    #     options = ["Update AwaitingPayment Orders", "View Processing Orders", "Update Processing / OrderReady"]
+    @bot.message_handler(commands=["manageorders"])
+    @admin_only
+    def manage_orders(message:types.Message) -> None:
+        # TODO: add additional views/options
+        # TODO: change this to an enum
+        options = [
+            "View Processing Orders",
+            "Update AwaitingPayment Orders",
+            "Update Processing Orders",
+            "Update OrderReady Orders",
+            "Update Any Order Status"
+        ]
 
-    #     msg = bot.send_message(message.chat.id, "What would you like to do?", reply_markup=keyboard)
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        for option in options:
+            button = types.KeyboardButton(option)
+            keyboard.add(button)
 
+        msg = bot.send_message(message.chat.id, "What would you like to do?", reply_markup=keyboard)
+        bot.register_next_step_handler(msg, handle_manage_order)
+
+    def handle_manage_order(message:types.Message) -> None:
+        # TODO: update when changed to enum
+        option = message.text
+        match option:
+            case "View Processing Orders":
+                processing_orders = db.get_order_details_by_status(OrderStatus.Processing)       
+                if not processing_orders:
+                    bot.send_message(message.chat.id, "There are no orders to be processed.")
+                    return  
+        
+                formatted_message = "🔄 *Orders Processing*\n"
+                for order in processing_orders:
+                    # TODO: make username easy to click with @ to message them?
+                    username = sanitise_username(order.customer_name)
+                    formatted_message += f"• {username} - {order.order_contents}\n"
+                bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
+            
+            case "Update AwaitingPayment Orders":
+                awaiting_payment_orders = db.get_order_details_by_status(OrderStatus.AwaitingPayment)
+                if not awaiting_payment_orders:
+                    bot.send_message(message.chat.id, "There are no orders awaiting payment.")
+                    return 
+
+                formatted_message = "💳 *Orders Awaiting Payment*\n" 
+                for order in awaiting_payment_orders:
+                    # TODO: make username easy to click with @ to message them?
+                    username = sanitise_username(order.customer_name)
+                    formatted_message += f"{order.order_id}: {username} - {order.order_contents}\n"
+                bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
+
+                keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+                keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
+                msg = bot.send_message(
+                    message.chat.id,
+                    "Would you like to update the status for any of these orders?",
+                    reply_markup=keyboard    
+                )
+                bot.register_next_step_handler(msg, handle_update_status, True)
+
+            case "Update Processing Orders":
+                pass
+
+            case "Update OrderReady Orders":
+                pass
+
+            case "Update Any Order Status":
+                pass
+
+            case _:
+                bot.send_message(message.chat.id, "Nothing to do.")
+     
+    def handle_update_status(message:types.Message, restricted:bool) -> None:
+        if message.text == "Yes":
+            msg = bot.send_message(
+                message.chat.id,
+                "Please enter the ID of the order you want to update? (Only the number)"
+            )
+            bot.register_next_step_handler(msg, handle_order_selection, restricted)
+        elif message.text == "No":
+            pass
+
+    def handle_order_selection(message:types.Message, restricted:bool) -> None:
+        try:
+            order_id = int(message.text)
+        except ValueError:
+            bot.send_message(message.chat.id, "Please enter a valid order ID number.")
+            return 
+        
+        if not db.check_order_id_exists(order_id):
+            bot.send_message(message.chat.id, f"Order ID {order_id} does not exist in the database.")
+            return
+
+        if restricted:
+            status = db.get_status_by_id(order_id)
+            allowed_statuses = status_transition(status)
+        else:
+            allowed_statuses = OrderStatus
+
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        for status in allowed_statuses:
+            button = types.KeyboardButton(status.name)
+            keyboard.add(button)
+
+        msg = bot.send_message(
+            message.chat.id,
+            "Which order would you like to update?",
+            reply_markup=keyboard
+        )
+        bot.register_next_step_handler(msg, handle_status_selection, order_id, restricted)
+
+    def handle_status_selection(message:types.Message, order_id:int, restricted:bool) -> None:
+        status = getattr(OrderStatus, message.text, None)
+        db.update_order_status(order_id, status)
+
+        bot.send_message(message.chat.id, f"Order ID {order_id} updated to {display_status(status)}")
+
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
+        msg = bot.send_message(
+            message.chat.id,
+            "Would you like to update the status for another order?",
+            reply_markup=keyboard    
+        )
+        bot.register_next_step_handler(msg, handle_update_status, restricted)
 
     # Setup signal handling for graceful shutdown
     def graceful_shutdown(signal, frame):
