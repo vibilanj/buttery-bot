@@ -36,3 +36,9 @@ class OrderDetail(NamedTuple):
     customer_name: str
     status : OrderStatus
     order_contents: str
+
+
+class Command(NamedTuple):
+    command: str
+    description: str
+    admin_only: bool

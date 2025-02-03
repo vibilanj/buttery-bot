@@ -210,13 +210,13 @@ class Database:
         """Fetch the order status by cusomter_name."""
         self.cursor.execute("SELECT status FROM orders WHERE customer_name = ?", (username,))
         row = self.cursor.fetchone()
-        return getattr(OrderStatus, row[0], None)
+        return getattr(OrderStatus, row[0], None) if row else None
 
     def get_status_by_id(self, order_id:int) -> Optional[OrderStatus]:
         """Fetch the order status by id."""
         self.cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
         row = self.cursor.fetchone()
-        return getattr(OrderStatus, row[0], None)
+        return getattr(OrderStatus, row[0], None) if row else None
     
     # Check
     def check_order_id_exists(self, order_id:int) -> bool:

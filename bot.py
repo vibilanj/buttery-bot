@@ -4,7 +4,7 @@ import signal
 import sys
 import telebot
 
-from constants import OrderStatus
+from constants import OrderStatus, Command
 from datetime import datetime
 from decimal import Decimal
 from dotenv import load_dotenv
@@ -12,6 +12,18 @@ from functools import wraps
 from models import Database
 from telebot import types
 from utils import display_status, parse_status, sanitise_username, status_transition
+
+commands = [
+    Command(command="/start", description="Start the bot", admin_only=False),
+    Command(command="/help", description="View commands", admin_only=False),
+    Command(command="/menu", description="See the menu", admin_only=False),
+    Command(command="/order", description="Place your order", admin_only=False),
+    Command(command="/status", description="Check your order status", admin_only=False),
+    
+    Command(command="/listorders", description="List all orders", admin_only=True),
+    Command(command="/manageorders", description="Manage orders", admin_only=True),
+    Command(command="/updatequantity", description="Update menu item quantity", admin_only=True),
+]
 
 def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
@@ -52,16 +64,15 @@ if __name__ == "__main__":
     # Bot message handlers
     @bot.message_handler(commands=["start"])
     def send_welcome(message:types.Message) -> None:
-        bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot!")
+        bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot! 🤖 \nUse /help to see what commands you can use!")
 
     @bot.message_handler(commands=["help"])
-    def help(message:types.Message) -> None:
-        # TODO: write a helpful message
-        commands = [
-            ("/menu", ""),
-            ("/order", ""),
-        ]
-        pass
+    def help(message: types.Message) -> None:
+        formatted_message = "⚙️ *Available Commands*\n"
+        for command in commands:
+            if message.chat.username in admins or not command.admin_only:
+                formatted_message += f"{command.command} - {command.description}\n"
+        bot.send_message(message.chat.id, formatted_message)
 
     @bot.message_handler(commands=["menu"])
     def show_menu(message:types.Message) -> None:
