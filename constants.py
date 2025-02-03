@@ -11,6 +11,13 @@ class OrderStatus(Enum):
     Cancelled = 6
 
 
+class UpdateStatusOption(Enum):
+    AwaitingPayment = "Update AwaitingPayment Orders"
+    Processing = "Update Processing Orders"
+    OrderReady = "Update OrderReady Orders"
+    Any = "Update Any Order"
+    
+
 class MenuItem(NamedTuple):
     id: int
     name: str
