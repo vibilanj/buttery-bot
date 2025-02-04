@@ -28,6 +28,7 @@ class MenuItem(NamedTuple):
 class Order(NamedTuple):
     id: int
     customer_name: str
+    customer_chat_id: str
     status: OrderStatus
     created_at: str 
 

@@ -62,8 +62,9 @@ def cast_to_order(row) -> Order:
     return Order(
         id=int(row[0]),
         customer_name=row[1],
-        status=getattr(OrderStatus, row[2], None),
-        created_at=row[3]
+        customer_chat_id=row[2],
+        status=getattr(OrderStatus, row[3], None),
+        created_at=row[4]
     )
 
 def cast_to_order_item(row) -> OrderItem:

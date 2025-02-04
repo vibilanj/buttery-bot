@@ -141,21 +141,23 @@ if __name__ == "__main__":
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
 
-        success = db.insert_single_order(message.chat.username, item_id, quantity)
+        chat_id = message.chat.id
+        username = message.chat.username
+        success = db.insert_single_order(username, chat_id, item_id, quantity)
         if not success:
             bot.send_message(
-                message.chat.id,
+                chat_id,
                 "Sorry, we have run out of the item you selected. Please select a smaller quantity or choose another item."
             )
             make_order(message)
             return
 
         if final:
-            finalise_order(message.chat.id, message.chat.username)
+            finalise_order(chat_id, username)
             return
 
         msg = bot.send_message(
-            message.chat.id,
+            chat_id,
             "Would you like to add another item to your order? (Yes/No)",
             reply_markup=keyboard
         )
@@ -284,7 +286,6 @@ if __name__ == "__main__":
                 handle_restricted_update_status(OrderStatus.AwaitingPayment, message.chat.id)
 
             case UpdateStatusOption.Processing.value:
-                # TODO: send them text if order is ready
                 handle_restricted_update_status(OrderStatus.Processing, message.chat.id)
 
             case UpdateStatusOption.OrderReady.value:
@@ -380,6 +381,10 @@ if __name__ == "__main__":
     def handle_status_selection(message:types.Message, init_status:OrderStatus, order_id:int, restricted:bool) -> None:
         status = parse_status(message.text)
         db.update_order_status(order_id, status)
+
+        if status == OrderStatus.OrderReady:
+            user_chat_id = db.get_chat_id_by_id(order_id)
+            bot.send_message(user_chat_id, "Your order is ready to collect!")
 
         bot.send_message(message.chat.id, f"Order ID {order_id} updated to {display_status(status)}")
 

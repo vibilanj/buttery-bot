@@ -64,6 +64,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 customer_name TEXT NOT NULL,
+                customer_chat_id TEXT NOT NULL,
                 status TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -111,7 +112,7 @@ class Database:
         query = "INSERT INTO menu (name, quantity, price) VALUES (?, ?, ?)"
         self.cursor.execute(query, (name, quantity, price))
 
-    def insert_single_order(self, username:str, item_id:int, quantity:int) -> bool:
+    def insert_single_order(self, username:str, chat_id:str, item_id:int, quantity:int) -> bool:
         """Insert a new single order."""
         # TODO: need try-catch here?
         self.cursor.execute("BEGIN TRANSACTION;")
@@ -129,7 +130,7 @@ class Database:
         existing_order = self.cursor.fetchone()
 
         if not existing_order:
-            self.cursor.execute("INSERT INTO orders (customer_name, status) VALUES (?, ?)", (username, OrderStatus.Pending.name))
+            self.cursor.execute("INSERT INTO orders (customer_name, customer_chat_id, status) VALUES (?, ?, ?)", (username, chat_id, OrderStatus.Pending.name))
             order_id = self.cursor.lastrowid
             self.cursor.execute("INSERT INTO order_items (order_id, menu_id, quantity) VALUES (?, ?, ?)",
                                 (order_id, item_id, quantity))
@@ -232,6 +233,12 @@ class Database:
         row = self.cursor.fetchone()
         return getattr(OrderStatus, row[0], None) if row else None
     
+    def get_chat_id_by_id(self, order_id:int) -> Optional[str]:
+        """Fetch the customer chat id by id."""
+        self.cursor.execute("SELECT customer_chat_id FROM orders WHERE id = ?", (order_id,))
+        row = self.cursor.fetchone()
+        return row[0] if row else None
+    
     ## order_items
     def get_order_items_for_order_id(self, order_id:int) -> list[OrderItem]:
         """Fetch all order items for a particular order."""
@@ -287,8 +294,8 @@ class Database:
     # Testing 
     def _insert_bulk_order(self, customer_name:str, ordered_items: list[tuple[int, int]]) -> None:
         """Insert a new bulk order."""
-        self.cursor.execute("INSERT INTO orders (customer_name, status) VALUES (?, ?)",
-                            (customer_name, OrderStatus.AwaitingPayment.name))
+        self.cursor.execute("INSERT INTO orders (customer_name, customer_chat_id, status) VALUES (?, ?, ?)",
+                            (customer_name, "", OrderStatus.AwaitingPayment.name))
         order_id = self.cursor.lastrowid
 
         for item_id, quantity in ordered_items:
