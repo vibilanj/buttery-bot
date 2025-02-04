@@ -26,6 +26,10 @@ commands = [
     Command(command="/updatequantity", description="Update menu item quantity", admin_only=True),
 ]
 
+# TODO: put correct payment QR code
+QR_CODE_FILE = "placeholder.jpg"
+
+
 def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
 
@@ -54,6 +58,9 @@ if __name__ == "__main__":
     admins_str = os.getenv("ADMINS")
     admins = admins_str.split(',') if admins_str else []
 
+    admin_chat_ids_str = os.getenv("ADMIN_CHAT_IDS")
+    admin_chat_ids = admin_chat_ids_str.split(',') if admin_chat_ids_str else []
+
     db = Database()
     db._reset_database()
     db.initialise()
@@ -66,6 +73,7 @@ if __name__ == "__main__":
     @bot.message_handler(commands=["start"])
     def send_welcome(message:types.Message) -> None:
         bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot! 🤖 \nUse /help to see what commands you can use!")
+        # bot.reply_to(message, f"Your chat_id is {message.chat.id}")
 
     @bot.message_handler(commands=["help"])
     def help(message: types.Message) -> None:
@@ -85,12 +93,19 @@ if __name__ == "__main__":
 
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
-        # TODO: allow only one order per username, maybe can make more after fulfilled?
-        menu = db.get_menu()
+        # TODO: maybe can make more after order is fulfilled?
+        username = message.chat.username
+        has_order = db.check_order_for_user_exists(username)
+        if has_order:
+            bot.send_message(message.chat.id, "Sorry, you already have an order. Please contact buttery staff for assistance.")
+            return
+
         formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
         
+        unselected_items = db.get_unselected_menu_item_names_by_username(username)
+        final = len(unselected_items) == 1
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for item in menu:
+        for item in unselected_items:
             button = types.KeyboardButton(f"{item.name} - ${item.price:.2f}")
             keyboard.add(button)
 
@@ -100,9 +115,9 @@ if __name__ == "__main__":
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
-        bot.register_next_step_handler(msg, handle_item_selection)
+        bot.register_next_step_handler(msg, handle_item_selection, final)
 
-    def handle_item_selection(message:types.Message) -> None:
+    def handle_item_selection(message:types.Message, final:bool) -> None:
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
         if not item:
@@ -118,18 +133,27 @@ if __name__ == "__main__":
             f"How many {item.name}(s) would you like to order? (Price per item: ${item.price:.2f})",
             reply_markup=keyboard
         )
-        bot.register_next_step_handler(msg, handle_quantity_input, item.id)
+        bot.register_next_step_handler(msg, handle_quantity_input, item.id, final)
 
-    def handle_quantity_input(message:types.Message, item_id:int) -> None:
+    def handle_quantity_input(message:types.Message, item_id:int, final:bool) -> None:
         quantity = int(message.text)
-        # TODO: do proper error checking
-        # TODO: check that they have not made an order for that item already,
-        #   cannot be more than existing quantity 
 
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
 
-        db.insert_single_order(message.chat.username, item_id, quantity)
+        success = db.insert_single_order(message.chat.username, item_id, quantity)
+        if not success:
+            bot.send_message(
+                message.chat.id,
+                "Sorry, we have run out of the item you selected. Please select a smaller quantity or choose another item."
+            )
+            make_order(message)
+            return
+
+        if final:
+            finalise_order(message.chat.id, message.chat.username)
+            return
+
         msg = bot.send_message(
             message.chat.id,
             "Would you like to add another item to your order? (Yes/No)",
@@ -145,7 +169,7 @@ if __name__ == "__main__":
 
     def finalise_order(chat_id:int, username:str) -> None:
         pending_order_ids = db.get_pending_orders_for_username(username)
-        if len(pending_order_id) != 1:
+        if len(pending_order_ids) != 1:
             logging.warning("Should be unreachable: finalise_order with multiple pending orders.")
             return
         pending_order_id = pending_order_ids[0]
@@ -165,10 +189,32 @@ if __name__ == "__main__":
             total_price += item_price
             order_summary += f"{item.name} x {order_item.quantity} = ${item_price:.2f}\n"
         order_summary += f"\nTotal: ${total_price:.2f}"        
-        # TODO: add payment details QR code here and thank you for your order
 
-        db.update_order_status(pending_order_id, OrderStatus.AwaitingPayment)
         bot.send_message(chat_id, order_summary, parse_mode="Markdown")
+        bot.send_message(
+            chat_id,
+            "Please pay the correct amount to the QR code below and send the screenshot in this chat. Thank you for your order!"
+        )
+        with open(QR_CODE_FILE, "rb") as photo:
+            msg = bot.send_photo(chat_id, photo)
+        
+        db.update_order_status(pending_order_id, OrderStatus.AwaitingPayment)
+        bot.register_next_step_handler(msg, send_notification_after_payment, order_item.order_id)
+
+    def send_notification_after_payment(message:types.Message, order_id:int) -> None:
+        if message.photo:
+            file_id = message.photo[-1].file_id
+        elif message.document:
+            file_id = message.document.file_id
+        
+        file_path = bot.get_file(file_id).file_path
+        photo_file = bot.download_file(file_path)
+
+        username = message.chat.username
+        for chat_id in admin_chat_ids:
+            bot.send_photo(chat_id, photo_file, caption=f"Payment from {username} for order {order_id}")
+
+        bot.send_message(message.chat.id, "Your screenshot has been forwarded to the admin.")
 
     @bot.message_handler(commands=["status"])
     def check_status(message:types.Message) -> None:
@@ -181,7 +227,7 @@ if __name__ == "__main__":
             message_text = f"The status of your order is {status}."
         bot.send_message(message.chat.id, message_text)
 
-    # TODO: view current order and allow edit order before certain status
+    # TODO: view current order and allow edit order before certain status ?
 
     # Admin only message handlers
     def admin_only(f):
@@ -199,10 +245,9 @@ if __name__ == "__main__":
         order_details = db.get_order_details()
         formatted_message = "📃 *All Orders*\n"
         for order_detail in order_details:
-            # TODO: make username easy to click with @ to message them?
             username = sanitise_username(order_detail.customer_name)
             status = display_status(order_detail.status)
-            formatted_message += f"{order_detail.order_id}: {username} - {status}\n"
+            formatted_message += f"{order_detail.order_id}: @{username} - {status}\n"
             formatted_message += f"    {order_detail.order_contents}\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
@@ -216,9 +261,8 @@ if __name__ == "__main__":
 
         formatted_message = "🔄 *Orders to Process*\n"
         for order in processing_orders:
-            # TODO: make username easy to click with @ to message them?
             username = sanitise_username(order.customer_name)
-            formatted_message += f"• {username} - {order.order_contents}\n"
+            formatted_message += f"• @{username} - {order.order_contents}\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
     @bot.message_handler(commands=["updatestatus"])
@@ -240,6 +284,7 @@ if __name__ == "__main__":
                 handle_restricted_update_status(OrderStatus.AwaitingPayment, message.chat.id)
 
             case UpdateStatusOption.Processing.value:
+                # TODO: send them text if order is ready
                 handle_restricted_update_status(OrderStatus.Processing, message.chat.id)
 
             case UpdateStatusOption.OrderReady.value:
@@ -269,9 +314,8 @@ if __name__ == "__main__":
         formatted_message = f"*{display_status(status)}*\n"
         order_ids = []
         for order in orders:
-            # TODO: make username easy to click with @ to message them?
             username = sanitise_username(order.customer_name)
-            formatted_message += f"{order.order_id}: {username} - {order.order_contents}\n"
+            formatted_message += f"{order.order_id}: @{username} - {order.order_contents}\n"
             order_ids.append(order.order_id)
         bot.send_message(chat_id, formatted_message, parse_mode="Markdown")
 
@@ -311,7 +355,7 @@ if __name__ == "__main__":
             bot.send_message(message.chat.id, "Please enter a valid order ID number.")
             return 
         
-        if not db.check_order_id_exists(order_id):
+        if not db.check_order_for_id_exists(order_id):
             bot.send_message(message.chat.id, f"Order ID {order_id} does not exist in the database.")
             return
 
@@ -382,6 +426,7 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_update_quantity, item.id)
 
     def handle_update_quantity(message: types.Message, item_id: int) -> None:
+        # TODO: reduce quantity instead of replace?
         try:
             quantity = int(message.text)
             if quantity <= 0:

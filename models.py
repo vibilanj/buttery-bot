@@ -111,8 +111,20 @@ class Database:
         query = "INSERT INTO menu (name, quantity, price) VALUES (?, ?, ?)"
         self.cursor.execute(query, (name, quantity, price))
 
-    def insert_single_order(self, username:str, item_id:int, quantity:int) -> None:
+    def insert_single_order(self, username:str, item_id:int, quantity:int) -> bool:
         """Insert a new single order."""
+        # TODO: need try-catch here?
+        self.cursor.execute("BEGIN TRANSACTION;")
+
+        self.cursor.execute("SELECT quantity FROM menu WHERE id = ?", (item_id,))
+        row = self.cursor.fetchone()
+        available_quantity = int(row[0]) if row else None
+
+        if quantity > available_quantity:
+            logging.warning(f"Not enough stock for item {item_id}. Requested: {quantity}, Available: {available_quantity}")
+            self.cursor.execute("ROLLBACK;")
+            return False
+
         self.cursor.execute("SELECT id FROM orders WHERE customer_name = ? AND status = ?", (username, OrderStatus.Pending.name,))
         existing_order = self.cursor.fetchone()
 
@@ -135,9 +147,12 @@ class Database:
                 self.cursor.execute("UPDATE order_items SET quantity = ? WHERE order_id = ? and menu_id = ?",
                                     (updated_quantity, order_id, item_id))
 
+        new_quantity = available_quantity - quantity
+        self.cursor.execute("UPDATE menu SET quantity = ? WHERE id = ?", (new_quantity, item_id))
+
         self.conn.commit()
         logging.info(f"Order for {username} of {quantity}x Item {item_id} added successfully.")
-
+        return True
 
     # TODO: add important logs
 
@@ -160,6 +175,23 @@ class Database:
         self.cursor.execute("SELECT * FROM menu WHERE name = ?", (name,))
         row = self.cursor.fetchone()
         return cast_to_menu_item(row) if row else None
+    
+    def get_unselected_menu_item_names_by_username(self, username:str) -> list[MenuItem]:
+        """Fetch menu item names that have not been selected by the user."""
+        query = """
+            SELECT mi.id, mi.name, mi.quantity, mi.price 
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            JOIN menu mi ON oi.menu_id = mi.id
+            WHERE o.customer_name = ?
+        """
+        self.cursor.execute(query, (username,))
+        rows = self.cursor.fetchall()
+
+        selected_items = {cast_to_menu_item(row) for row in rows}
+        menu_items = self.get_menu()
+        unselected_items = [item for item in menu_items if item not in selected_items]
+        return unselected_items
     
     ## orders
     def get_orders(self) -> list[Order]:
@@ -223,13 +255,20 @@ class Database:
         return [cast_to_order_detail(row) for row in rows]
 
     # Check
-    def check_order_id_exists(self, order_id:int) -> bool:
+    def check_order_for_id_exists(self, order_id:int) -> bool:
         """Check that order id exists."""
-        query = "SELECT COUNT(1) from orders WHERE id = ?"
+        query = "SELECT COUNT(1) FROM orders WHERE id = ?"
         self.cursor.execute(query, (order_id,))
         row = self.cursor.fetchone()
         return row[0] > 0
-
+    
+    def check_order_for_user_exists(self, username:str) -> bool:
+        """Check that order for user exists."""
+        query = "SELECT COUNT(1) FROM orders WHERE customer_name = ? AND status != ?"
+        self.cursor.execute(query, (username,OrderStatus.Pending.name))
+        row = self.cursor.fetchone()
+        return row[0] > 0
+    
     # Update
     def update_menu_item_quantity(self, item_id:int, quantity:int) -> None:
         """Update menu item quantity."""
@@ -263,7 +302,7 @@ class Database:
     def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
-        self.insert_menu_item("Dumplings", 20, 2)
+        self.insert_menu_item("Dumplings", 1, 2)
         self.insert_menu_item("Cream Roll Cake", 15, 2)
         self.insert_menu_item("Xiao Long Bao", 20, 3)
 
