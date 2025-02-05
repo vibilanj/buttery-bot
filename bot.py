@@ -1,10 +1,11 @@
+import argparse
 import logging
 import os
 import signal
 import sys
 import telebot
 
-from constants import OrderStatus, Command, UpdateStatusOption
+from constants import QR_CODE_FILE, AVAIL_CMDS, MENU_DETAILS, OrderStatus, UpdateStatusOption
 from datetime import datetime
 from decimal import Decimal
 from dotenv import load_dotenv
@@ -12,25 +13,6 @@ from functools import wraps
 from models import Database
 from telebot import types
 from utils import display_status, parse_status, sanitise_username, status_transition
-
-commands = [
-    Command(command="/start", description="Start the bot", admin_only=False),
-    Command(command="/help", description="View commands", admin_only=False),
-    Command(command="/menu", description="See the menu", admin_only=False),
-    Command(command="/order", description="Place your order", admin_only=False),
-    Command(command="/status", description="Check your order status", admin_only=False),
-    
-    Command(command="/listorders", description="List all orders", admin_only=True),
-    Command(command="/toprocess", description="List orders to process", admin_only=True),
-    Command(command="/updatestatus", description="Update order status", admin_only=True),
-    Command(command="/updatequantity", description="Update menu item quantity", admin_only=True),
-]
-
-# TODO: put correct payment QR code
-QR_CODE_FILE = "placeholder.jpg"
-
-menu_details = "Dumpings contain prawn and beef, 5 dumplings per portion."
-# TODO: send menu poster?
 
 
 def setup_logging(log_dir:str="logs") -> None:
@@ -55,25 +37,23 @@ def setup_logging(log_dir:str="logs") -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--test", help="Run in test mode", action="store_true")
+    args = parser.parse_args()
+
     setup_logging()
     load_dotenv()
 
+    if args.test:
+        logging.info("Running bot in test mode.")
+          
     admins_str = os.getenv("ADMINS")
     admins = admins_str.split(',') if admins_str else []
 
     admin_chat_ids_str = os.getenv("ADMIN_CHAT_IDS")
     admin_chat_ids = admin_chat_ids_str.split(',') if admin_chat_ids_str else []
 
-    db = Database()
-    db._reset_database()
-    db.initialise()
-    # db._populate_test_data()
-
-    db.insert_menu_item("Chili Oil Dumplings", 20, 2.5)
-    db.insert_menu_item("Scallion Oil Noodles", 15, 2)
-    db.insert_menu_item("Egg, for noodles", 15, 0.5)
-    db.insert_menu_item("Mandarin Fresh Cream Roll", 10, 2.5)
-
+    db = Database(test_mode=args.test)
     bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 
@@ -92,7 +72,7 @@ if __name__ == "__main__":
     @bot.message_handler(commands=["help"])
     def help(message: types.Message) -> None:
         formatted_message = "⚙️ *Available Commands*\n"
-        for command in commands:
+        for command in AVAIL_CMDS:
             if message.chat.username in admins or not command.admin_only:
                 formatted_message += f"{command.command} - {command.description}\n"
         bot.send_message(message.chat.id, formatted_message)
@@ -105,8 +85,8 @@ if __name__ == "__main__":
             formatted_message += f"• {item.name}  (${item.price:.2f})\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
-        if menu_details:
-            bot.send_message(message.chat.id, menu_details, parse_mode="Markdown")
+        if MENU_DETAILS:
+            bot.send_message(message.chat.id, MENU_DETAILS, parse_mode="Markdown")
 
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
@@ -134,9 +114,13 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_item_selection, final)
 
     def handle_item_selection(message:types.Message, final:bool) -> None:
-        # TODO: debug error here
-        logging.debug(f"Message text to be split: {message.text}")
-        item_name, _ = message.text.split(" - ")
+        split_message = message.text.split(" - ")
+        if len(split_message) != 2:
+            logging.warning(f"Should be unreachable: handle_item_selection with incorrect message text.")
+            bot.send_message(message.chat.id, "Please use the custom keyboard to select the item.")
+            return make_order(message)
+
+        item_name = split_message[0]
         item = db.get_menu_item_by_name(item_name)
         if not item:
             logging.warning("Should be unreachable: handle_item_selection with no item.")
@@ -185,6 +169,9 @@ if __name__ == "__main__":
         if message.text == "Yes":
             make_order(message)
         elif message.text == "No":
+            finalise_order(message.chat.id, message.chat.username)
+        else:
+            logging.warning("Should be unreachable: handle_add_another_item with neither Yes or No.")
             finalise_order(message.chat.id, message.chat.username)
 
     def finalise_order(chat_id:int, username:str) -> None:
@@ -265,6 +252,10 @@ if __name__ == "__main__":
     @admin_only
     def show_order_details(message:types.Message) -> None:
         order_details = db.get_order_details()
+        if not order_details:
+            bot.send_message(message.chat.id, "There are no orders.")
+            return
+        
         formatted_message = "📃 *All Orders*\n"
         for order_detail in order_details:
             username = sanitise_username(order_detail.customer_name)
@@ -366,7 +357,7 @@ if __name__ == "__main__":
             )
             bot.register_next_step_handler(msg, handle_order_selection, restricted)
         elif message.text == "No":
-            pass
+            return
 
     def handle_order_selection(message:types.Message, restricted:bool) -> None:
         try:

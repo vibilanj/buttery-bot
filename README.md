@@ -33,7 +33,6 @@
 
 ## Todo
  
-- [ ] Make prod and test mode
 - [ ] Setup script to archive database
 - [ ] Setup script to read from database and make summaries and plots 
 - [ ] Allow users to make more orders after they are fulfilled

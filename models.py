@@ -1,14 +1,11 @@
 import logging
 import sqlite3
 
-from constants import Order, OrderDetail, OrderItem, OrderStatus, MenuItem
+from constants import DB_FILE, MENU_ITEMS, Order, OrderDetail, OrderItem, OrderStatus, MenuItem
 from typing import Optional
 from utils import cast_to_menu_item, cast_to_order, cast_to_order_item, cast_to_order_detail
 
 logger = logging.getLogger(__name__)
-
-DB_FILE = "buttery.db"
-
 
 def add_log(msg: str):
     def decorator(func):
@@ -20,12 +17,24 @@ def add_log(msg: str):
 
 
 class Database:
-    def __init__(self, db_file:str=DB_FILE) -> None:
+    def __init__(self, db_file:str = DB_FILE, test_mode:bool = False) -> None:
         self.db_file = db_file
+        self.test_mode = test_mode
+
         self.conn = sqlite3.connect(db_file, check_same_thread=False if sqlite3.threadsafety == 3 else True)
         self.cursor = self.conn.cursor()
         logging.info(f"Connected to database: {db_file}")
         self._enable_wal_mode()
+
+        if test_mode:
+            self._reset_database()
+            self.initialise()
+            self._populate_test_data()
+        else:
+            self.initialise()
+            for name, quantity, price in MENU_ITEMS:
+                self.insert_menu_item(name, quantity, price)
+        
 
     def _enable_wal_mode(self) -> None:
         try:
@@ -304,14 +313,15 @@ class Database:
     def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
-        self.insert_menu_item("Dumplings", 5, 2)
-        self.insert_menu_item("Cream Roll Cake", 15, 2)
-        self.insert_menu_item("Xiao Long Bao", 20, 3)
+        self.insert_menu_item("Chili Oil Dumplings", 20, 2.5)
+        self.insert_menu_item("Scallion Oil Noodles", 15, 2)
+        self.insert_menu_item("Egg (for noodles)", 15, 0.5)
+        self.insert_menu_item("Mandarin Fresh Cream Roll", 10, 2.5)
 
         # Insert some orders
-        self._insert_bulk_order("Alice", [(1, 1), (3, 2)])
-        self._insert_bulk_order("Bob", [(2, 2), (3, 3)])
-        self._insert_bulk_order("Charl_ie", [(1, 2), (3, 1)])
+        self._insert_bulk_order("Alice", [(1, 1), (4, 1)])
+        self._insert_bulk_order("Bob", [(2, 1), (3, 1)])
+        self._insert_bulk_order("Charl_ie", [(1, 2), (2, 1), (4, 1)])
 
         logging.info("Test data populated.")
 
