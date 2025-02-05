@@ -25,7 +25,6 @@ class Database:
         self.conn = sqlite3.connect(db_file, check_same_thread=False if sqlite3.threadsafety == 3 else True)
         self.cursor = self.conn.cursor()
         logging.info(f"Connected to database: {db_file}")
-        # TODO: enable wal mode?
         self._enable_wal_mode()
 
     def _enable_wal_mode(self) -> None:
@@ -80,7 +79,6 @@ class Database:
             );
             """
 
-        # TODO: use json for order_contents instead? 
         CREATE_ORDER_DETIALS_VIEW = """
             CREATE VIEW IF NOT EXISTS order_details AS
             SELECT 
@@ -115,7 +113,6 @@ class Database:
     def insert_single_order(self, username:str, chat_id:str, item_id:int, quantity:int) -> bool:
         """Insert a new single order."""
         # TODO: need try-catch here?
-        self.cursor.execute("BEGIN TRANSACTION;")
 
         self.cursor.execute("SELECT quantity FROM menu WHERE id = ?", (item_id,))
         row = self.cursor.fetchone()
@@ -123,7 +120,6 @@ class Database:
 
         if quantity > available_quantity:
             logging.warning(f"Not enough stock for item {item_id}. Requested: {quantity}, Available: {available_quantity}")
-            self.cursor.execute("ROLLBACK;")
             return False
 
         self.cursor.execute("SELECT id FROM orders WHERE customer_name = ? AND status = ?", (username, OrderStatus.Pending.name,))
@@ -155,7 +151,6 @@ class Database:
         logging.info(f"Order for {username} of {quantity}x Item {item_id} added successfully.")
         return True
 
-    # TODO: add important logs
 
     # Read
     ## menu
@@ -309,7 +304,7 @@ class Database:
     def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
-        self.insert_menu_item("Dumplings", 1, 2)
+        self.insert_menu_item("Dumplings", 5, 2)
         self.insert_menu_item("Cream Roll Cake", 15, 2)
         self.insert_menu_item("Xiao Long Bao", 20, 3)
 

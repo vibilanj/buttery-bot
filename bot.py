@@ -29,6 +29,9 @@ commands = [
 # TODO: put correct payment QR code
 QR_CODE_FILE = "placeholder.jpg"
 
+menu_details = "Dumpings contain prawn and beef, 5 dumplings per portion."
+# TODO: send menu poster?
+
 
 def setup_logging(log_dir:str="logs") -> None:
     """Set up logging to capture logs in a file and to the console."""
@@ -64,7 +67,12 @@ if __name__ == "__main__":
     db = Database()
     db._reset_database()
     db.initialise()
-    db._populate_test_data()
+    # db._populate_test_data()
+
+    db.insert_menu_item("Chili Oil Dumplings", 20, 2.5)
+    db.insert_menu_item("Scallion Oil Noodles", 15, 2)
+    db.insert_menu_item("Egg, for noodles", 15, 0.5)
+    db.insert_menu_item("Mandarin Fresh Cream Roll", 10, 2.5)
 
     bot = telebot.TeleBot(os.getenv("TOKEN"))
 
@@ -72,7 +80,13 @@ if __name__ == "__main__":
     # Bot message handlers
     @bot.message_handler(commands=["start"])
     def send_welcome(message:types.Message) -> None:
-        bot.reply_to(message, "Hi, I'm the Yale-NUS Buttery Bot! 🤖 \nUse /help to see what commands you can use!")
+        start_message = (
+            "Hi, I'm the Yale-NUS Buttery Bot! 🤖\n"
+            "Use /help to see what commands you can use!\n\n"
+            "Please use the custom keyboards whenever they pop up.\n"
+            "Lastly, I'm new so let the buttery team know if there any issues."
+        )
+        bot.send_message(message.chat.id, start_message)
         # bot.reply_to(message, f"Your chat_id is {message.chat.id}")
 
     @bot.message_handler(commands=["help"])
@@ -91,9 +105,11 @@ if __name__ == "__main__":
             formatted_message += f"• {item.name}  (${item.price:.2f})\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
+        if menu_details:
+            bot.send_message(message.chat.id, menu_details, parse_mode="Markdown")
+
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
-        # TODO: maybe can make more after order is fulfilled?
         username = message.chat.username
         has_order = db.check_order_for_user_exists(username)
         if has_order:
@@ -118,6 +134,8 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_item_selection, final)
 
     def handle_item_selection(message:types.Message, final:bool) -> None:
+        # TODO: debug error here
+        logging.debug(f"Message text to be split: {message.text}")
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
         if not item:
@@ -208,6 +226,10 @@ if __name__ == "__main__":
             file_id = message.photo[-1].file_id
         elif message.document:
             file_id = message.document.file_id
+        else:
+            msg = bot.send_message(message.chat.id, "Please send the screenshot image.")
+            bot.register_next_step_handler(msg, send_notification_after_payment, order_id)
+            return
         
         file_path = bot.get_file(file_id).file_path
         photo_file = bot.download_file(file_path)
@@ -220,7 +242,6 @@ if __name__ == "__main__":
 
     @bot.message_handler(commands=["status"])
     def check_status(message:types.Message) -> None:
-        # TODO: show order details too?
         status = db.get_status_by_customer_name(message.chat.username)
         if not status:
             message_text = "You do not have an active order."
@@ -229,7 +250,6 @@ if __name__ == "__main__":
             message_text = f"The status of your order is {status}."
         bot.send_message(message.chat.id, message_text)
 
-    # TODO: view current order and allow edit order before certain status ?
 
     # Admin only message handlers
     def admin_only(f):
@@ -270,7 +290,6 @@ if __name__ == "__main__":
     @bot.message_handler(commands=["updatestatus"])
     @admin_only
     def manage_orders(message:types.Message) -> None:
-        # TODO: add additional views/options
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for option in UpdateStatusOption:
             button = types.KeyboardButton(option.value)
@@ -382,6 +401,7 @@ if __name__ == "__main__":
         status = parse_status(message.text)
         db.update_order_status(order_id, status)
 
+        # TODO: check if order is moved to processing, then send message to cooks @rachel
         if status == OrderStatus.OrderReady:
             user_chat_id = db.get_chat_id_by_id(order_id)
             bot.send_message(user_chat_id, "Your order is ready to collect!")
@@ -431,7 +451,7 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_update_quantity, item.id)
 
     def handle_update_quantity(message: types.Message, item_id: int) -> None:
-        # TODO: reduce quantity instead of replace?
+        # TODO: reduce quantity instead of replace? @rachel
         try:
             quantity = int(message.text)
             if quantity <= 0:

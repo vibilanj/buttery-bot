@@ -8,10 +8,11 @@
 - Show order status to customer.
 - Send order and customer information to cooking team.
 - Admin hidden commands to
-    - set available items and quantity (?)
     - update available quantity
     - manually approve payment
     - update order status
+
+### Future
 - Store sales statistics
 - Allow people to make suggestions/vote on menu items
 
@@ -30,15 +31,19 @@
 3. OrderReady
 4. OrderCollected / Cancelled
 
-
 ## Todo
+ 
+- [ ] Make prod and test mode
+- [ ] Setup script to archive database
+- [ ] Setup script to read from database and make summaries and plots 
+- [ ] Allow users to make more orders after they are fulfilled
+- [ ] Allow users to view their current order and edit it if they have not paid yet
 
-- [ ] Allow users to edit their order if status is AwaitingPayment (or Pending)
-- [ ] Send payment QR code and menu poster. 
-- [ ] Setup script to archive database, convert database into a nice viewing format in a pinch
-- [ ] Test with real users and concurrency
-    - if not, consider using thread local connections or SQLachemy
-- [ ] Move backend functionality to API (overkill?)
+## Testing
+
+- [ ] Usability without database WAL mode
+- [ ] CHECK insert_single_order, error handling, whether commit does the transaction handling as expected
+- [ ] Test if asynchronous polling is possible
 
 ## Learning 
 
@@ -47,3 +52,6 @@
 - Dealing with decimal calculations
 - Logging 
 - NamedTuple vs Dataclass
+
+- If concurrency issue, then consider using thread local connections or ORM like SQLAlchemy
+- Move backend functionality to API

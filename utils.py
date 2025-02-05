@@ -40,7 +40,6 @@ def parse_status(status_str:str) -> OrderStatus:
         case _:
             return OrderStatus.Pending
 
-# TODO: when can orders be cancelled
 def status_transition(status:OrderStatus) -> OrderStatus:
     STATUS_TRANSITIONS = {
         OrderStatus.AwaitingPayment: [OrderStatus.Processing, OrderStatus.Cancelled],
