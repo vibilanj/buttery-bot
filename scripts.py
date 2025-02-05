@@ -1,4 +1,9 @@
-from constants import AVAIL_CMDS
+import argparse
+import os
+import shutil
+
+from constants import ARCHIVE_DIR, AVAIL_CMDS, DB_FILE
+from datetime import datetime
 
 def convert_commands_for_botfather(include_admin_only:bool):
     """Convert commands to the format that BotFather accepts for /setcommands"""
@@ -10,11 +15,35 @@ def convert_commands_for_botfather(include_admin_only:bool):
     return "\n".join(converted)
 
 def archive_db():
-    pass
+    if not os.path.exists(ARCHIVE_DIR):
+        os.makedirs(ARCHIVE_DIR)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    archive_path = os.path.join(ARCHIVE_DIR, f"{timestamp}.db")
+    
+    try:
+        shutil.copy(DB_FILE, archive_path)
+        print(f"Database successfully archived to {archive_path}")
+    except FileNotFoundError:
+        print(f"Error: {DB_FILE} does not exist.")
+    except Exception as e:
+        print(f"An error occurred while archiving: {e}")
 
 def visualise_db():
     pass
 
 if __name__ == "__main__":
-    out = convert_commands_for_botfather(False)
-    print(out)
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", help="Subcommands")
+
+    archive_parser = subparsers.add_parser("archive", help="Archive the database")
+    visualise_parser = subparsers.add_parser("visualize", help="Visualize the database")
+
+    args = parser.parse_args()
+    if args.command == "archive":
+        archive_db()
+    elif args.command == "visualize":
+        visualise_db()
+    else:
+        # print(convert_commands_for_botfather(False))j
+        parser.print_help()

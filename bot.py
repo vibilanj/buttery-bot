@@ -5,7 +5,7 @@ import signal
 import sys
 import telebot
 
-from constants import QR_CODE_FILE, AVAIL_CMDS, MENU_DETAILS, OrderStatus, UpdateStatusOption
+from constants import QR_CODE_FILE, AVAIL_CMDS, MENU_DETAILS, LOGS_DIR, OrderStatus, UpdateStatusOption
 from datetime import datetime
 from decimal import Decimal
 from dotenv import load_dotenv
@@ -15,13 +15,15 @@ from telebot import types
 from utils import display_status, parse_status, sanitise_username, status_transition
 
 
-def setup_logging(log_dir:str="logs") -> None:
+def setup_logging(log_dir:str = LOGS_DIR, test_mode:bool = False) -> None:
     """Set up logging to capture logs in a file and to the console."""
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_filename = f"{log_dir}/buttery_{timestamp}.log"
+
+    prefix = "test" if test_mode else "prod"
+    log_filename = os.path.join(log_dir, f"{prefix}_{timestamp}.log")
 
     log_format = "%(asctime)s [%(levelname)s] @ %(threadName)s - %(message)s"
     
@@ -41,12 +43,12 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--test", help="Run in test mode", action="store_true")
     args = parser.parse_args()
 
-    setup_logging()
+    setup_logging(test_mode=args.test)
     load_dotenv()
 
-    if args.test:
-        logging.info("Running bot in test mode.")
-          
+    mode = "test" if args.test else "production"
+    logging.info(f"Running bot in {mode} mode.")
+ 
     admins_str = os.getenv("ADMINS")
     admins = admins_str.split(',') if admins_str else []
 

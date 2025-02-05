@@ -14,6 +14,8 @@ MENU_ITEMS = [
 MENU_DETAILS = "Dumpings contain prawn and beef, 5 dumplings per portion."
 # TODO: set menu poster?
 
+LOGS_DIR = "logs"
+ARCHIVE_DIR = "archive"
 
 class OrderStatus(Enum):
     Pending = 1
