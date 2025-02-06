@@ -30,6 +30,8 @@ def archive_db():
         print(f"An error occurred while archiving: {e}")
 
 def visualise_db():
+    # select file from archive?
+    # read from db and make statistics and plots
     pass
 
 if __name__ == "__main__":

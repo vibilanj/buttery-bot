@@ -65,8 +65,9 @@ if __name__ == "__main__":
         start_message = (
             "Hi, I'm the Yale-NUS Buttery Bot! 🤖\n"
             "Use /help to see what commands you can use!\n\n"
-            "Please use the custom keyboards whenever they pop up.\n"
-            "Lastly, I'm new so let the buttery team know if there any issues."
+            "You can only make one order for now, so choose wisely.\n"
+            "Please use the custom keyboards whenever they pop up.\n\n"
+            "I'm new so let the buttery team know if there any issues!"
         )
         bot.send_message(message.chat.id, start_message)
         # bot.reply_to(message, f"Your chat_id is {message.chat.id}")
@@ -77,7 +78,7 @@ if __name__ == "__main__":
         for command in AVAIL_CMDS:
             if message.chat.username in admins or not command.admin_only:
                 formatted_message += f"{command.command} - {command.description}\n"
-        bot.send_message(message.chat.id, formatted_message)
+        bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
     @bot.message_handler(commands=["menu"])
     def show_menu(message:types.Message) -> None:
@@ -225,9 +226,15 @@ if __name__ == "__main__":
 
         username = message.chat.username
         for chat_id in admin_chat_ids:
-            bot.send_photo(chat_id, photo_file, caption=f"Payment from {username} for order {order_id}")
+            bot.send_photo(chat_id, photo_file, caption=f"Payment from @{username} for order {order_id}")
 
-        bot.send_message(message.chat.id, "Your screenshot has been forwarded to the admin.")
+
+        wait_message = (
+            "Your screenshot has been forwarded to the admin. "
+            "Please wait while they confirm and prepare your order. "
+            "You’ll receive a message once it's ready for collection!"
+        )
+        bot.send_message(message.chat.id, wait_message)
 
     @bot.message_handler(commands=["status"])
     def check_status(message:types.Message) -> None:

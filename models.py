@@ -313,7 +313,7 @@ class Database:
     def _populate_test_data(self) -> None:
         """Populate the database with some test data for testing purposes."""
         # Insert some items into the menu
-        self.insert_menu_item("Chili Oil Dumplings", 20, 2.5)
+        self.insert_menu_item("Chili Oil Dumplings", 20, 3)
         self.insert_menu_item("Scallion Oil Noodles", 15, 2)
         self.insert_menu_item("Egg (for noodles)", 15, 0.5)
         self.insert_menu_item("Mandarin Fresh Cream Roll", 10, 2.5)

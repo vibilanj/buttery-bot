@@ -33,7 +33,6 @@
 
 ## Todo
  
-- [ ] Setup script to archive database
 - [ ] Setup script to read from database and make summaries and plots 
 - [ ] Allow users to make more orders after they are fulfilled
 - [ ] Allow users to view their current order and edit it if they have not paid yet

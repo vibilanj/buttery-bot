@@ -6,7 +6,7 @@ DB_FILE = "buttery.db"
 QR_CODE_FILE = "qr_code.jpg"
 
 MENU_ITEMS = [
-    ("Chili Oil Dumplings", 20, 2.5),
+    ("Chili Oil Dumplings", 20, 3),
     ("Scallion Oil Noodles", 15, 2),
     ("Egg (for noodles)", 15, 0.5),
     ("Mandarin Fresh Cream Roll", 10, 2.5)
