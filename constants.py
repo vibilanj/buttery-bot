@@ -79,6 +79,6 @@ AVAIL_CMDS : list[Command] = [
     Command(command="/listorders", description="List all orders", admin_only=True),
     Command(command="/toprocess", description="List orders to process", admin_only=True),
     Command(command="/updatestatus", description="Update order status", admin_only=True),
-    Command(command="/updatequantity", description="Update menu item quantity", admin_only=True),
+    Command(command="/reducequantity", description="Reduce menu item quantity", admin_only=True),
 ]
 

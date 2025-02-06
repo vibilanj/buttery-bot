@@ -281,12 +281,16 @@ class Database:
         return row[0] > 0
     
     # Update
-    def update_menu_item_quantity(self, item_id:int, quantity:int) -> None:
-        """Update menu item quantity."""
-        query = "UPDATE menu SET quantity = ? WHERE id = ?"
-        self.cursor.execute(query, (quantity, item_id))
+    def reduce_menu_item_quantity(self, item_id:int, quantity:int) -> None:
+        """Reduce menu item quantity."""
+        self.cursor.execute("SELECT quantity FROM menu WHERE id = ?", (item_id,))
+        row = self.cursor.fetchone()
+        current_quantity = row[0] if row else None
+        
+        new_quantity = max(current_quantity - quantity, 0)
+        self.cursor.execute("UPDATE menu SET quantity = ? WHERE id = ?", (new_quantity, item_id))
         self.conn.commit()
-        logging.info(f"Menu item {item_id} quantity updated to {quantity}.")
+        logging.info(f"Menu item {item_id} quantity reduced to {new_quantity}.")
 
     def update_order_status(self, order_id:int, status:OrderStatus) -> None:
         """Update order status."""

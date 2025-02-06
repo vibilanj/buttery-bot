@@ -422,9 +422,9 @@ if __name__ == "__main__":
         )
         bot.register_next_step_handler(msg, handle_update_status, order_ids, restricted)
 
-    @bot.message_handler(commands=["updatequantity"])
+    @bot.message_handler(commands=["reducequantity"])
     @admin_only
-    def update_menu_quantity(message:types.Message) -> None:
+    def reduce_menu_quantity(message:types.Message) -> None:
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         menu = db.get_menu()
 
@@ -434,12 +434,12 @@ if __name__ == "__main__":
 
         msg = bot.send_message(
             message.chat.id,
-            "Please select the menu item you want to update the quantity of.",
+            "Please select the menu item you want to reduce the quantity of.",
             reply_markup=keyboard
         )
-        bot.register_next_step_handler(msg, handle_update_item_selection)
+        bot.register_next_step_handler(msg, handle_reduce_item_selection)
 
-    def handle_update_item_selection(message:types.Message) -> None:
+    def handle_reduce_item_selection(message:types.Message) -> None:
         item_name, _ = message.text.split(" - ")
         item = db.get_menu_item_by_name(item_name)
         if not item:
@@ -449,23 +449,23 @@ if __name__ == "__main__":
 
         msg = bot.send_message(
             message.chat.id,
-            f"Please enter the new quantity for {item.name}. (Integers only)"
+            f"Please enter the amount to reduce the quantity of {item.name} by."
         )
-        bot.register_next_step_handler(msg, handle_update_quantity, item.id)
+        bot.register_next_step_handler(msg, handle_reduce_quantity, item.id)
 
-    def handle_update_quantity(message: types.Message, item_id: int) -> None:
-        # TODO: reduce quantity instead of replace? @rachel
+    def handle_reduce_quantity(message: types.Message, item_id: int) -> None:
         try:
             quantity = int(message.text)
-            if quantity <= 0:
+            if quantity < 0:
                 raise ValueError("Quantity must be a positive integer.")
         except ValueError:
             msg = bot.send_message(message.chat.id, "Please enter a valid positive integer quantity.")
-            bot.register_next_step_handler(msg, handle_update_quantity, item_id)
+            bot.register_next_step_handler(msg, handle_reduce_quantity, item_id)
             return
 
-        db.update_menu_item_quantity(item_id, quantity)
-        bot.send_message(message.chat.id, f"Menu item {item_id} updated to {quantity} nos.")
+        if quantity != 0:
+            db.reduce_menu_item_quantity(item_id, quantity)
+        bot.send_message(message.chat.id, f"Menu item {item_id} quantity reduced by {quantity} nos.")
 
     # Setup signal handling for graceful shutdown
     def graceful_shutdown(signal, frame):
