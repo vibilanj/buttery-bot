@@ -12,7 +12,7 @@ MENU_ITEMS = [
     ("Mandarin Fresh Cream Roll", 10, 2.5)
 ]
 MENU_DETAILS = "Dumpings contain prawn and beef, 5 dumplings per portion."
-# TODO: set menu poster?
+MENU_FLYER = "menu_flyer.jpg"
 
 LOGS_DIR = "logs"
 ARCHIVE_DIR = "archive"

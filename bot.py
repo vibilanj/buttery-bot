@@ -5,7 +5,7 @@ import signal
 import sys
 import telebot
 
-from constants import QR_CODE_FILE, AVAIL_CMDS, MENU_DETAILS, LOGS_DIR, OrderStatus, UpdateStatusOption
+from constants import QR_CODE_FILE, AVAIL_CMDS, MENU_DETAILS, MENU_FLYER, LOGS_DIR, OrderStatus, UpdateStatusOption
 from datetime import datetime
 from decimal import Decimal
 from dotenv import load_dotenv
@@ -82,14 +82,18 @@ if __name__ == "__main__":
 
     @bot.message_handler(commands=["menu"])
     def show_menu(message:types.Message) -> None:
+        chat_id = message.chat.id
         menu = db.get_menu()
         formatted_message = "📋 *Menu Items*\n"
         for item in menu:
             formatted_message += f"• {item.name}  (${item.price:.2f})\n"
-        bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
+        bot.send_message(chat_id, formatted_message, parse_mode="Markdown")
 
+        if MENU_FLYER:
+            with open(MENU_FLYER, "rb") as photo:
+                bot.send_photo(chat_id, photo)
         if MENU_DETAILS:
-            bot.send_message(message.chat.id, MENU_DETAILS, parse_mode="Markdown")
+            bot.send_message(chat_id, MENU_DETAILS, parse_mode="Markdown")
 
     @bot.message_handler(commands=["order"])
     def make_order(message:types.Message) -> None:
