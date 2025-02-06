@@ -4,46 +4,17 @@ def sanitise_username(username:str) -> str:
     """Escape underscores from usernames for markdown."""
     return username.replace("_", "\\_")
 
-def display_status(status:OrderStatus) -> str:
-    """Convert order status to a human-readable string with an emoji."""
-    match status:
-        case OrderStatus.Pending:
-            return "⏳ Pending"
-        case OrderStatus.AwaitingPayment:
-            return "💳 Awaiting Payment"
-        case OrderStatus.Processing:
-            return "🔄 Processing"
-        case OrderStatus.OrderReady:
-            return "🍽️ Order Ready"
-        case OrderStatus.OrderCollected:
-            return "✅ Order Collected"
-        case OrderStatus.Cancelled:
-            return "❌ Cancelled"
-        case _:
-            return "Unknown Status"
-
 def parse_status(status_str:str) -> OrderStatus:
     """Convert a human-readable string back to the corresponding OrderStatus."""
-    match status_str:
-        case "⏳ Pending":
-            return OrderStatus.Pending
-        case "💳 Awaiting Payment":
-            return OrderStatus.AwaitingPayment
-        case "🔄 Processing":
-            return OrderStatus.Processing
-        case "🍽️ Order Ready":
-            return OrderStatus.OrderReady
-        case "✅ Order Collected":
-            return OrderStatus.OrderCollected
-        case "❌ Cancelled":
-            return OrderStatus.Cancelled
-        case _:
-            return OrderStatus.Pending
+    for status in OrderStatus:
+        if status.value == status_str:
+            return status
+    return OrderStatus.Pending
 
 def status_transition(status:OrderStatus) -> OrderStatus:
     STATUS_TRANSITIONS = {
-        OrderStatus.AwaitingPayment: [OrderStatus.Processing, OrderStatus.Cancelled],
-        OrderStatus.Processing: [OrderStatus.OrderReady],
+        OrderStatus.AwaitingPayment: [OrderStatus.InKitchen, OrderStatus.Cancelled],
+        OrderStatus.InKitchen: [OrderStatus.OrderReady],
         OrderStatus.OrderReady: [OrderStatus.OrderCollected],
     }
     return STATUS_TRANSITIONS.get(status, [])

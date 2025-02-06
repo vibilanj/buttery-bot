@@ -18,17 +18,20 @@ LOGS_DIR = "logs"
 ARCHIVE_DIR = "archive"
 
 class OrderStatus(Enum):
-    Pending = 1
-    AwaitingPayment = 2
-    Processing = 3
-    OrderReady = 4
-    OrderCollected = 5
-    Cancelled = 6
+    Pending = "⏳ Pending"
+    AwaitingPayment = "💳 Awaiting Payment"
+    InKitchen = "👨‍🍳 In the Kitchen"
+    OrderReady = "🍽️ Order Ready"
+    OrderCollected = "✅ Order Collected"
+    Cancelled = "❌ Cancelled"
+
+    def display(self) -> str:
+        return self.value
 
 
 class UpdateStatusOption(Enum):
     AwaitingPayment = "Update AwaitingPayment Orders"
-    Processing = "Update Processing Orders"
+    InKitchen = "Update InKitchen Orders"
     OrderReady = "Update OrderReady Orders"
     Any = "Update Any Order"
     

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from functools import wraps
 from models import Database
 from telebot import types
-from utils import display_status, parse_status, sanitise_username, status_transition
+from utils import parse_status, sanitise_username, status_transition
 
 
 def setup_logging(log_dir:str = LOGS_DIR, test_mode:bool = False) -> None:
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             bot.send_message(message.chat.id, "Sorry, you already have an order. Please contact buttery staff for assistance.")
             return
 
-        formatted_message = "📋 *Menu Items*\nPlease select an item from the menu:"
+        formatted_message = "📋 *Make Order*\nPlease select an item from the keyboard:"
         
         unselected_items = db.get_unselected_menu_item_names_by_username(username)
         final = len(unselected_items) == 1
@@ -141,7 +141,12 @@ if __name__ == "__main__":
         bot.register_next_step_handler(msg, handle_quantity_input, item.id, final)
 
     def handle_quantity_input(message:types.Message, item_id:int, final:bool) -> None:
-        quantity = int(message.text)
+        try: 
+            quantity = int(message.text)
+        except ValueError:
+            msg = bot.send_message(message.chat.id, "Please enter a valid quantity when making orders.")
+            make_order(message)
+            return
 
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         keyboard.add(types.KeyboardButton("Yes"), types.KeyboardButton("No"))
@@ -242,8 +247,7 @@ if __name__ == "__main__":
         if not status:
             message_text = "You do not have an active order."
         else:
-            status = display_status(status)
-            message_text = f"The status of your order is {status}."
+            message_text = f"The status of your order is {status.display()}."
         bot.send_message(message.chat.id, message_text)
 
 
@@ -268,15 +272,14 @@ if __name__ == "__main__":
         formatted_message = "📃 *All Orders*\n"
         for order_detail in order_details:
             username = sanitise_username(order_detail.customer_name)
-            status = display_status(order_detail.status)
-            formatted_message += f"{order_detail.order_id}: @{username} - {status}\n"
+            formatted_message += f"{order_detail.order_id}: @{username} - {order_detail.status.display()}\n"
             formatted_message += f"    {order_detail.order_contents}\n"
         bot.send_message(message.chat.id, formatted_message, parse_mode="Markdown")
 
     @bot.message_handler(commands=["toprocess"])
     @admin_only
     def show_processing_order_details(message:types.Message) -> None:
-        processing_orders = db.get_order_details_by_status(OrderStatus.Processing)       
+        processing_orders = db.get_order_details_by_status(OrderStatus.InKitchen)       
         if not processing_orders:
             bot.send_message(message.chat.id, "There are no orders to be processed.")
             return  
@@ -304,8 +307,8 @@ if __name__ == "__main__":
             case UpdateStatusOption.AwaitingPayment.value:
                 handle_restricted_update_status(OrderStatus.AwaitingPayment, message.chat.id)
 
-            case UpdateStatusOption.Processing.value:
-                handle_restricted_update_status(OrderStatus.Processing, message.chat.id)
+            case UpdateStatusOption.InKitchen.value:
+                handle_restricted_update_status(OrderStatus.InKitchen, message.chat.id)
 
             case UpdateStatusOption.OrderReady.value:
                 handle_restricted_update_status(OrderStatus.OrderReady, message.chat.id)
@@ -328,10 +331,10 @@ if __name__ == "__main__":
     def handle_restricted_update_status(status:OrderStatus, chat_id:int) -> None:
         orders = db.get_order_details_by_status(status)
         if not orders:
-            bot.send_message(chat_id, f"There are no {display_status(status)} orders.")
+            bot.send_message(chat_id, f"There are no {status.display()} orders.")
             return 
 
-        formatted_message = f"*{display_status(status)}*\n"
+        formatted_message = f"*{status.display()}*\n"
         order_ids = []
         for order in orders:
             username = sanitise_username(order.customer_name)
@@ -387,7 +390,7 @@ if __name__ == "__main__":
 
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for status in allowed_statuses:
-            button = types.KeyboardButton(display_status(status))
+            button = types.KeyboardButton(status.display())
             keyboard.add(button)
 
         msg = bot.send_message(
@@ -406,7 +409,7 @@ if __name__ == "__main__":
             user_chat_id = db.get_chat_id_by_id(order_id)
             bot.send_message(user_chat_id, "Your order is ready to collect!")
 
-        bot.send_message(message.chat.id, f"Order ID {order_id} updated to {display_status(status)}")
+        bot.send_message(message.chat.id, f"Order ID {order_id} updated to {status.display()}")
 
         order_ids = db.get_order_ids_by_status(init_status)
 
