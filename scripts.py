@@ -1,11 +1,12 @@
 import argparse
 import os
 import shutil
+import sqlite3
 
 from constants import ARCHIVE_DIR, AVAIL_CMDS, DB_FILE
 from datetime import datetime
 
-def convert_commands_for_botfather(include_admin_only:bool):
+def convert_commands_for_botfather(include_admin_only:bool) -> str:
     """Convert commands to the format that BotFather accepts for /setcommands"""
     converted = [
         f"{command.command[1:]} - {command.description}"
@@ -14,7 +15,7 @@ def convert_commands_for_botfather(include_admin_only:bool):
     ]
     return "\n".join(converted)
 
-def archive_db():
+def archive_db() -> None:
     if not os.path.exists(ARCHIVE_DIR):
         os.makedirs(ARCHIVE_DIR)
 
@@ -29,10 +30,31 @@ def archive_db():
     except Exception as e:
         print(f"An error occurred while archiving: {e}")
 
-def visualise_db():
+def visualise_db(path:str) -> None:
+    conn = sqlite3.connect(path)
+    cursor = conn.cursor()
+
+    # Calculate total sales
+    cursor.execute("""
+        SELECT oi.menu_id, m.name, SUM(oi.quantity * m.price) AS total_sales
+        FROM order_items oi
+        JOIN menu m ON oi.menu_id = m.id
+        GROUP BY oi.menu_id
+    """)
+    menu_sales = cursor.fetchall()
+    print("Sales by Menu Item: ", menu_sales)
+
+    cursor.execute("""
+        SELECT SUM(oi.quantity * m.price) AS total_sales
+        FROM order_items oi
+        JOIN menu m ON oi.menu_id = m.id
+    """)
+    total_sales = cursor.fetchone()[0]
+    print(f"Total Sales: ${total_sales:.2f}")
+
     # select file from archive?
     # read from db and make statistics and plots
-    pass
+    return None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -45,7 +67,7 @@ if __name__ == "__main__":
     if args.command == "archive":
         archive_db()
     elif args.command == "visualize":
-        visualise_db()
+        visualise_db("archive/2025-02-07.db")
     else:
         # print(convert_commands_for_botfather(False))j
         parser.print_help()

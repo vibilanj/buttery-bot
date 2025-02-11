@@ -7,8 +7,8 @@ QR_CODE_FILE = "qr_code.jpg"
 
 MENU_ITEMS = [
     ("Chili Oil Dumplings", 20, 3),
-    ("Scallion Oil Noodles", 15, 2),
-    ("Egg (for noodles)", 15, 0.5),
+    ("Scallion Oil Noodles", 20, 2),
+    ("Egg (for noodles)", 20, 0.5),
     ("Mandarin Fresh Cream Roll", 10, 2.5)
 ]
 MENU_DETAILS = "Dumpings contain prawn and beef, 5 dumplings per portion."
