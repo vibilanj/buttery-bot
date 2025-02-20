@@ -6,13 +6,13 @@ DB_FILE = "buttery.db"
 QR_CODE_FILE = "qr_code.jpg"
 
 MENU_ITEMS = [
-    ("Chili Oil Dumplings", 20, 3),
-    ("Scallion Oil Noodles", 20, 2),
-    ("Egg (for noodles)", 20, 0.5),
-    ("Mandarin Fresh Cream Roll", 10, 2.5)
+    ("Mini Sliders (Beef Burgers)", 12, 2.5),
+    ("Roast Chicken w/ Veggies & Yorkshire Pudding", 6, 3.5),
+    ("Duck Fat Roasted Potatoes", 6, 1.5),
+    ("Sticky Date Pudding w/ Ice Cream", 13, 2)
 ]
-MENU_DETAILS = "Dumpings contain prawn and beef, 5 dumplings per portion."
-MENU_FLYER = "menu_flyer.jpg"
+MENU_DETAILS = None # None or "additional details"
+MENU_FLYER = None # None or "image_path.jpg"
 
 LOGS_DIR = "logs"
 ARCHIVE_DIR = "archive"

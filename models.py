@@ -88,7 +88,7 @@ class Database:
             );
             """
 
-        CREATE_ORDER_DETIALS_VIEW = """
+        CREATE_ORDER_DETAILS_VIEW = """
             CREATE VIEW IF NOT EXISTS order_details AS
             SELECT 
                 o.id AS order_id,
@@ -108,7 +108,7 @@ class Database:
         self.cursor.execute(CREATE_MENU_TABLE)
         self.cursor.execute(CREATE_ORDERS_TABLE)
         self.cursor.execute(CREATE_ORDER_ITEMS_TABLE)
-        self.cursor.execute(CREATE_ORDER_DETIALS_VIEW)
+        self.cursor.execute(CREATE_ORDER_DETAILS_VIEW)
         self.conn.commit()
         logging.info("Initialised database and created tables and views.")
 

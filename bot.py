@@ -218,16 +218,16 @@ if __name__ == "__main__":
             msg = bot.send_photo(chat_id, photo)
         
         db.update_order_status(pending_order_id, OrderStatus.AwaitingPayment)
-        bot.register_next_step_handler(msg, send_notification_after_payment, order_item.order_id)
+        bot.register_next_step_handler(msg, send_notification_after_payment, order_item.order_id, total_price)
 
-    def send_notification_after_payment(message:types.Message, order_id:int) -> None:
+    def send_notification_after_payment(message:types.Message, order_id:int, total_price:Decimal) -> None:
         if message.photo:
             file_id = message.photo[-1].file_id
         elif message.document:
             file_id = message.document.file_id
         else:
             msg = bot.send_message(message.chat.id, "Please send the screenshot image.")
-            bot.register_next_step_handler(msg, send_notification_after_payment, order_id)
+            bot.register_next_step_handler(msg, send_notification_after_payment, order_id, total_price)
             return
         
         file_path = bot.get_file(file_id).file_path
@@ -235,7 +235,8 @@ if __name__ == "__main__":
 
         username = message.chat.username
         for chat_id in admin_chat_ids:
-            bot.send_photo(chat_id, photo_file, caption=f"Payment from @{username} for order {order_id}")
+            # TODO: send expected amount
+            bot.send_photo(chat_id, photo_file, caption=f"Payment from @{username} for order {order_id} (${total_price:.2f}).")
 
 
         wait_message = (
