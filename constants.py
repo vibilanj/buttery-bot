@@ -6,10 +6,11 @@ DB_FILE = "buttery.db"
 QR_CODE_FILE = "qr_code.jpg"
 
 MENU_ITEMS = [
-    ("Mini Sliders (Beef Burgers)", 12, 2.5),
-    ("Roast Chicken w/ Veggies & Yorkshire Pudding", 6, 3.5),
-    ("Duck Fat Roasted Potatoes", 6, 1.5),
-    ("Sticky Date Pudding w/ Ice Cream", 13, 2)
+    ("Alfredo Fresh Pasta", 10, 2.5),
+    ("Alfredo Dry Pasta", 10, 2),
+    ("Add Shrimp (only for Alfredo)", 4, 1),
+    ("Bolognese Fresh Pasta", 11, 3),
+    ("Bolognese Dry Pasta", 10, 2.5)
 ]
 MENU_DETAILS = None # None or "additional details"
 MENU_FLYER = None # None or "image_path.jpg"

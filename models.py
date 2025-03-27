@@ -32,8 +32,7 @@ class Database:
             self._populate_test_data()
         else:
             self.initialise()
-            for name, quantity, price in MENU_ITEMS:
-                self.insert_menu_item(name, quantity, price)
+            self.init_menu_items() # TODO: do this once incase of restart
         
 
     def _enable_wal_mode(self) -> None:
@@ -112,6 +111,11 @@ class Database:
         self.conn.commit()
         logging.info("Initialised database and created tables and views.")
 
+    def init_menu_items(self) -> None:
+        """Add menu items to the database."""
+        for name, quantity, price in MENU_ITEMS:
+            self.insert_menu_item(name, quantity, price)
+        logging.info("Menu items added to database.")
 
     # Create
     def insert_menu_item(self, name:str, quantity:int, price:float) -> None:

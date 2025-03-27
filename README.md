@@ -5,11 +5,12 @@
 - List all available items on a particular buttery opening day.
 - Allow users to select available items to make an order.
 - Show total price and payment QR code.
+- Send message when order is ready.
 - Show order status to customer.
 - Send order and customer information to cooking team.
 - Admin hidden commands to
     - update available quantity
-    - manually approve payment
+    - receive screenshots and approve payment 
     - update order status
 
 ### Future
@@ -31,24 +32,18 @@
 3. OrderReady
 4. OrderCollected / Cancelled
 
-## Todo
+## Possible changes
  
-- [ ] Setup script to read from database and make summaries and plots 
 - [ ] Allow users to make more orders after they are fulfilled
 - [ ] Allow users to view their current order and edit it if they have not paid yet
+- [ ] Use asynchronous polling?
 
-## Testing
-
-- [ ] Usability without database WAL mode
-- [ ] CHECK insert_single_order, error handling, whether commit does the transaction handling as expected
-- [ ] Test if asynchronous polling is possible
-
-## Learning 
+## Notes
 
 - load_dotenv function
 - Enum type
 - Dealing with decimal calculations
-- Logging 
+- Proper logging in Python 
 - NamedTuple vs Dataclass
 
 - If concurrency issue, then consider using thread local connections or ORM like SQLAlchemy

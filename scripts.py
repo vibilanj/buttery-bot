@@ -67,7 +67,7 @@ if __name__ == "__main__":
     if args.command == "archive":
         archive_db()
     elif args.command == "visualize":
-        visualise_db("archive/2025-02-07.db")
+        visualise_db("archive/2025-03-06.db")
     else:
         # print(convert_commands_for_botfather(False))j
         parser.print_help()
